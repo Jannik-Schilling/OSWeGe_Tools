@@ -10,7 +10,7 @@ version=0.1
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
+about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
 
 tracker=http://bugs
 repository=http://repo
