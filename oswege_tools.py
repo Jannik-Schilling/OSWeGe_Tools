@@ -220,11 +220,12 @@ class oswege_tools_buttons:
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
-            self.first_start = False
             self.canvas = iface.mapCanvas()
+            self.qinst = QgsProject.instance()
+            self.first_start = False
             self.dlg = stationierungDialog(
                 canvas=self.canvas,
-                QgsInstance=QgsProject.instance()
+                QgsInstance=self.qinst
             )
             #canvasSize = self.canvas.size()
             #canvasHeight = canvasSize.height()
