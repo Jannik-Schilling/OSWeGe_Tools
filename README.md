@@ -11,5 +11,5 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
   - ZIP-Datei auswählen und auf "Erweiterung installieren" klicken
 
 ## Verfügbare Werkzeuge
-- Anzeige der Stationierung eines Gewässers (in der Werkeugleiste "Plugins"
+- Anzeige der Stationierung eines Gewässers (in der Werkeugleiste "Plugins")
 - Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
