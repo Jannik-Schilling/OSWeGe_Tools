@@ -27,8 +27,7 @@ import inspect
 
 from qgis.core import (
     QgsProcessingAlgorithm,
-    QgsApplication,
-    QgsProject
+    QgsApplication
 )
 from qgis.PyQt.QtCore import (
     QSettings,
@@ -220,12 +219,10 @@ class oswege_tools_buttons:
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
-            self.canvas = iface.mapCanvas()
-            self.qinst = QgsProject.instance()
             self.first_start = False
+            self.canvas = iface.mapCanvas()
             self.dlg = stationierungDialog(
-                canvas=self.canvas,
-                QgsInstance=self.qinst
+                canvas=self.canvas
             )
             #canvasSize = self.canvas.size()
             #canvasHeight = canvasSize.height()

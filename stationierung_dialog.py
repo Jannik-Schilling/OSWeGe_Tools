@@ -34,6 +34,7 @@ from qgis.core import (
     QgsGeometry,
     QgsMapLayerProxyModel,
     QgsPoint,
+    QgsProject,
     QgsSnappingConfig,
     QgsTolerance,
     QgsVectorLayer,
@@ -59,6 +60,8 @@ from .defaults import findGew_tolerance_dist
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'stationierung_dialog_base.ui'))
+
+QgsInstance=QgsProject.instance()
 
 class PrintSnappedPoint(QgsMapToolEmitPoint):
     """
@@ -133,7 +136,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
     """
     Dialog fuer das Abfragen der Stationierung
     """
-    def __init__(self, canvas, QgsInstance, parent=None):
+    def __init__(self, canvas, parent=None):
         """
         Constructor
         """
@@ -210,6 +213,8 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
     def reset_gew_layer(self):
         self.gew_layer = self.mMapLayerComboBox.currentLayer()
         self.gew_FieldComboBox.setLayer(self.gew_layer)
+        list_vlayers = [l for l in QgsInstance.mapLayers().values() if isinstance(l, QgsVectorLayer)]
+        self.list_p_l_layer = [l for l in list_vlayers if l.geometryType() in [QgsWkbTypes.LineGeometry, QgsWkbTypes.PointGeometry]]
         self.list_p_l_layer_ohneGew = [l for l in self.list_p_l_layer if l != self.gew_layer]
         list_p_l_layer_ohneGew_names = [l.name() for l in self.list_p_l_layer_ohneGew]
         self.mComboBox.clear()
