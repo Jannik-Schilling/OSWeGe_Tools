@@ -31,6 +31,7 @@ __revision__ = '$Format:%H$'
 import os
 from qgis.core import QgsProcessingProvider
 from .check_gewaesser import checkGewaesser
+from .check_ereignisse import checkEreignisse
 from qgis.PyQt.QtGui import QIcon
 
 pluginPath = os.path.dirname(__file__)
@@ -55,6 +56,7 @@ class oswegeToolsProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         self.addAlgorithm(checkGewaesser())
+        self.addAlgorithm(checkEreignisse())
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 
@@ -80,7 +82,7 @@ class oswegeToolsProvider(QgsProcessingProvider):
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
         """
-        return QIcon(os.path.join(pluginPath, "icons", "icon.png"))
+        return QIcon(os.path.join(pluginPath, "icons", "logo_neu_3farben.svg"))
 
     def longName(self):
         """
