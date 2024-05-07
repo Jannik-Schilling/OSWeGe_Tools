@@ -194,7 +194,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.gew_FieldComboBox.setEnabled(False)
         self.pushButton_start.setEnabled(False)
         self.pushButton_stop.setDisabled(False)
-        self.setWindowTitle("Aktiv: Stationierung Gewässer") 
+        self.setWindowTitle("Stationierung Gewässer (Werkzeug aktiv)") 
 
     def set_grey(self):
         pa_w = QPalette()

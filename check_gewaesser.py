@@ -205,7 +205,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                     pass
                 else:
                     val_list = val_list + [df_gew.loc[i, 'id']]
-                feedback.setProgress(int(i * total))
+                feedback.setProgress(int(i * total_steps))
             report_dict['Test_VAL_ID_MISSING'] = {
                 'Typ': 'Attribut',
                 'Spalte': feld_gew_name,
@@ -239,7 +239,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_EMPTY'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_EMPTY,
@@ -254,7 +254,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_MULTI'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_MULTI,
@@ -270,7 +270,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_SELFINTERSECT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_SELFINTERSECT,
@@ -292,7 +292,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
             else:
                 if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                     val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_INTERSECT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_INTERSECT,
@@ -316,7 +316,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
             else:
                 if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                     val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_DUPLICAT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_DUPLICAT,
@@ -345,7 +345,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 if not dupl:
                     if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                         val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_WASSERSCHEIDE'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_WASSERSCHEIDE,
@@ -372,7 +372,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 if not dupl:
                     if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                         val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total))
+            feedback.setProgress(int(i * total_steps))
         report_dict['Test_GEOM_SENKE'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_SENKE,
@@ -401,7 +401,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
         return 'Pruefroutine_Gewaesserlinie'
 
     def displayName(self):
-        return self.tr(self.name())
+        return '1_Pruefroutine_Gewaesserlinie'
 
     def group(self):
         return self.tr(self.groupId())
