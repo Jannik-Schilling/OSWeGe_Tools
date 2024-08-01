@@ -212,6 +212,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 'Report': oswDataFeedback.VAL_MISSING,
                 'Objekte': val_list
             }
+            del df_gew
 
 
         # Pruefroutinen fuer Geometrien

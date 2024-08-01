@@ -22,6 +22,9 @@ from qgis.core import (NULL,
                        QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingException,
+                       QgsExpression,
+                       QgsFeatureRequest,
+                       QgsGeometry,
                        QgsProcessingParameterVectorLayer,
                        QgsProcessingParameterNumber,
                        QgsProcessingAlgorithm,
@@ -35,7 +38,9 @@ from qgis import processing
 
 from .pruefungsroutinen import (
     check_spalte_vorhanden,
-    check_wert_fehlend
+    check_wert_fehlend,
+    check_geometrie_leer,
+    check_geometrie_multi
 )
 
 from .defaults import (
@@ -139,26 +144,26 @@ class checkEreignisse(QgsProcessingAlgorithm):
 
         # Layerauswahl und Felder
         # Ereignislayer
-        feld_ereign_gewname = 'BA_CD'
-        feld_ereign_stat_punkt = 'STAT'
-        feld_ereign_stat_linie_von = 'STAT_VON'
-        feld_ereign_stat_linie_bis = 'STAT_BIS'
-        feld_ereign_art = 'ART'
+        feld_ereign_gewname = 'ba_cd'
+        #feld_ereign_stat_punkt = 'STAT'
+        #feld_ereign_stat_linie_von = 'STAT_VON'
+        #feld_ereign_stat_linie_bis = 'STAT_BIS'
+        #feld_ereign_art = 'ART'
         # Gewaesserlayer
-        feld_gew_name = 'BA_CD'
+        feld_gew_name = 'ba_cd'
 
         if layer_ereign.geometryType() == 1:  # Linie
             benoetige_felder = [
                 feld_ereign_gewname,
-                feld_ereign_stat_linie_von,
-                feld_ereign_stat_linie_bis,
-                feld_ereign_art
+                #feld_ereign_stat_linie_von,
+                #feld_ereign_stat_linie_bis,
+                #feld_ereign_art
             ]
         else:  # Punkt
             benoetige_felder = [
                 feld_ereign_gewname,
-                feld_ereign_stat_punkt,
-                feld_ereign_art
+                #feld_ereign_stat_punkt,
+                #feld_ereign_art
             ]
 
         # dictionary fuer Feedback / Fehlermeldungen
@@ -238,221 +243,115 @@ class checkEreignisse(QgsProcessingAlgorithm):
         if len(fehlende_spalten) != 0:  # keine fehlenden Spalten
             feedback.pushWarning(
                 'Nicht alle benötigten Spalten vorhanden (siehe Report), Geometrietest wird übersprungen'
+                + str(fehlende_spalten)
             )
         else:
             feedback.setProgressText('Prüfe Geometrien:')
-            # Ereignis-Layer
-            datagen = (
-                [ft.id()] 
-                + [ft[feld] for feld in benoetige_felder] 
-                + [ft.geometry()] for ft in layer_ereign.getFeatures()
-            )
-            df_ereign_felder = ['id'] + benoetige_felder + ['geometry']
-
-            df_ereign = pd.DataFrame.from_records(
-                data=datagen,
-                columns=df_ereign_felder
-            )
-            del datagen
+            feedback.setProgressText('- leere Geometrien')
+            for i, ft in enumerate(layer_ereign.getFeatures()):
+                geom_i = ft.geometry()
+                if check_geometrie_leer(geom_i) == 0:
+                    pass
+                else:
+                    val_list = val_list + [ft.id()]
+                feedback.setProgress(int(i * total_steps))
+            report_dict['Test_GEOM_EMPTY'] = {
+                'Typ': 'Geometrie',
+                'Report': oswDataFeedback.GEOM_EMPTY,
+                'Objekte': val_list
+            }
             
-            # Gewaesser-Layer
-            df_gew_felder = [
-                'id',
-                feld_gew_name,
-                'geometry'
-            ]
-            datagen = (
-                [
-                    ft.id(),
-                    ft[feld_gew_name],
-                    ft.geometry()
-                ] for ft in layer_gew.getFeatures()
-            )
-            df_gew = pd.DataFrame.from_records(
-                data=datagen,
-                columns=df_gew_felder
-            )
-            del datagen
+            # Multigeometrien
+            feedback.setProgressText('- Multigeometrien')
+            val_list = []
+            for i, ft in enumerate(layer_ereign.getFeatures()):
+                geom_i = ft.geometry()
+                if check_geometrie_multi(geom_i) == 0:
+                    pass
+                else:
+                    val_list = val_list + [ft.id()]
+                feedback.setProgress(int(i * total_steps))
+            report_dict['Test_GEOM_MULTI'] = {
+                'Typ': 'Geometrie',
+                'Report': oswDataFeedback.GEOM_MULTI,
+                'Objekte': val_list
+            }
             
-
+            # Übereinstimmung mit Gewässergeometrie
+            feedback.setProgressText('- Übereinstimmung mit Gewässergeometrie')
             
-            # geometrie:
-            #    - leer
-            #    - multi
-            #    - nicht mit gewässer übereinstimmend
-            #    - fehlende Stützpunkte oder zu viele Stützpunkte
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        # def check_punkt_auf_linie(ereign_ft_i, err_df=None):
-            # '''ueberprueft die Punktgeometrie'''
-            # report_ereign_start_stop_msg = {}
-            # gew_geom_i = ereign_ft_i['geometry_gew']
-            # ereign_geom_i = ereign_ft_i['geometry']
-            # # Stationierung vorhanden?
-            # pointStation = ereign_ft_i[ereign_feld_stat_punkt]
-            # if (pointStation == NULL):
-                # report_ereign_start_stop_msg.update({('Feld '+ereign_feld_stat_punkt): ('Fehlender Wert. Konnte Geometrie nicht überprüfen.')})
-            # # dann Geometrie überprüfen
-            # else:
-                # point_on_line = gew_geom_i.interpolate(pointStation)
-                # check_vtx = [ereign_geom_i.distance(point_on_line)]
-                # if any ([d > toleranz_abw for d in check_vtx]):
-                    # report_ereign_start_stop_msg.update({'Geometrie': 'Geometrie nicht mit Gewässer übereinstimmend'})
-            # if len(report_ereign_start_stop_msg) > 0:
-                # if ereign_ft_i[ereign_feld_id] in err_dict.keys():
-                    # err_dict[ereign_ft_i[ereign_feld_id]].update(report_ereign_start_stop_msg)
-                # else:
-                    # err_dict[ereign_ft_i[ereign_feld_id]] = report_ereign_start_stop_msg
-            # del report_ereign_start_stop_msg
+            feedback.setProgressText('> Gewässername prüfen')
+            ereign_joined_layer = processing.run(
+                "native:joinbynearest",
+                {
+                    'INPUT': layer_ereign,
+                    'INPUT_2': layer_gew,
+                    'FIELDS_TO_COPY': ['ba_cd'],
+                    'DISCARD_NONMATCHING': False,
+                    'PREFIX':'gew_', 
+                    'NEIGHBORS':1, 
+                    'MAX_DISTANCE': None,
+                    'OUTPUT':'memory:'
+                },
+                context=context,
+                feedback=feedback
+            )['OUTPUT']
+            for i, ft in enumerate(ereign_joined_layer.getFeatures()):
+                if ft['ba_cd'] == ft['gew_ba_cd']:
+                    pass
+                else:
+                    print('Falscher Gewässername' + str(i))
 
+            feedback.setProgressText('> Geometrieübereinstimmung prüfen')
+            for i, ft in enumerate(ereign_joined_layer.getFeatures()):
+                geom_i = ft.geometry()
+                # check if null or multi
+                req_expression = QgsExpression("\"ba_cd\" = \'"+str(ft['gew_ba_cd'])+"\'")
+                gew_i = [f for f in layer_gew.getFeatures(QgsFeatureRequest(req_expression))][0]
+                gew_i_geom = gew_i.geometry()
+                vtx_df = pd.DataFrame({
+                    'ereign_sp': [QgsGeometry.fromPoint(vtx) for vtx in geom_i.vertices()],
+                    'naechster_gew_sp_idx': np.nan,
+                    'distanz_sp': np.nan,
+                    'distanz_gew': np.nan,
+                })
+                
+                vtx_df_maxIndex = vtx_df.index[-1]
+                ereign_vtx_start_geom = vtx_df['ereign_sp'][0]
+                ereign_vtx_ende_geom = vtx_df['ereign_sp'][vtx_df_maxIndex]
+                ereign_vtc_mittel_geom = vtx_df['ereign_sp'][1:vtx_df_maxIndex]
 
-        # def check_ereign_auf_linie(
-            # ereign_ft_i,
-            # gew_df,
-            # ereign_benoetigte_felder,
-            # ereign_feld_id,
-            # err_df=None
-        # ):
-            # '''ueberprueft die Liniengeometrie eine Ereignisses'''
-            # ereign_ft_i_name = ereign_ft_i[ereign_feld_id]
-            # report_ereign_lage_dict = {}
+                # naechster Punkt auf dem Gewässer
+                nearest_gew_point_start = gew_i_geom.nearestPoint(ereign_vtx_start_geom)
+                nearest_gew_xy_start = nearest_gew_point_start.asPoint()
+                nearest_gew_point_ende = gew_i_geom.nearestPoint(ereign_vtx_ende_geom)
+                nearest_gew_xy_ende = nearest_gew_point_ende.asPoint()
 
-            # # Stuetzpunkte des Ereignisobjekts
-            # ereign_ft_i_vertices = [
-                # [
-                    # i,
-                    # vtx
-                # ] for i, vtx in enumerate(ereign_ft_i['geometry'].vertices())
-            # ]
-            # ereign_ft_i_vertices_df = pd.DataFrame(
-                # ereign_ft_i_vertices,
-                # columns = ['index', 'geometry']
-            # )
-
-            # # Stuetzpunkte des Gewaesserobjekts
-            # gew_ft_i = gew_df.loc[gew_df[gew_feld_name]==ereign_ft_i[ereign_feld_gewname]]
-            # gew_geom_i = gew_ft_i['geometry'].to_list() [0]
-            # if len([p for p in gew_geom_i.parts()]) > 1:
-                # feedback.reportError(
-                    # str(ereign_ft_i[ereign_feld_gewname])
-                    # +': Fehler - mehr als ein Gewässerteil (Multigeometrie)'
-                # )
-            # else:
-                # gew_ft_i_vertices = [
-                    # [
-                        # i,
-                        # vtx,
-                        # round(gew_geom_i.distanceToVertex(i),2)
-                    # ] for i, vtx in enumerate(gew_geom_i.vertices())
-                # ]
-                # gew_ft_i_vertices_df = pd.DataFrame(
-                    # gew_ft_i_vertices,
-                    # columns = ['index', 'geometry', 'station']
-                # )
-                # # Distanz zu Gewaesserstuetzpunkten
-                # vtx_diff_text = ''  # Fehlertext
-                # ereign_ft_i_vertices_df['index_of_gew_vtx'] = np.nan
-                # ereign_ft_i_vertices_df['distance_to_gew_vtx'] = np.nan
-                # for i, v_e in enumerate(ereign_ft_i_vertices_df['geometry']):
-                    # vtx_distances = [v_e.distance(v_s) for v_s in gew_ft_i_vertices_df['geometry']]
-                    # min_vtx_distance = min(vtx_distances)
-                    # ereign_ft_i_vertices_df.loc[i,'distance_to_gew_vtx'] = min_vtx_distance
-                    # ereign_ft_i_vertices_df.loc[i,'index_of_gew_vtx'] = vtx_distances.index(min_vtx_distance)
-                # ereign_ft_i_vertices_df = ereign_ft_i_vertices_df.join(
-                    # gew_ft_i_vertices_df['station'],
-                    # on='index_of_gew_vtx'
-                # )
-                # ereign_ft_i_vertices_df = ereign_ft_i_vertices_df.rename(
-                    # columns={'station': 'gew_station'}
-                # )
-                # if any (ereign_ft_i_vertices_df['distance_to_gew_vtx'] > toleranz_abw):
-                    # ereign_abweichende_vtx = ereign_ft_i_vertices_df.loc[
-                        # ereign_ft_i_vertices_df['distance_to_gew_vtx'] > toleranz_abw,
-                        # ['index', 'distance_to_gew_vtx']
-                    # ]
-                    # vtx_diff_list = ereign_abweichende_vtx.apply(
-                        # lambda x: '            '+str(int(x[0]))+': '+ str(x[1]), axis=1
-                    # ).tolist()
-                    # vtx_diff_text = (
-                        # vtx_diff_text
-                        # + '\n        Stützpunkt(e) des Ereignislayers nicht mit Gewässerstützpunkten übereinstimmend;'
-                        # + ' Stützpunktnummer und Distanz:\n'
-                        # + '\n'.join(vtx_diff_list)
-                    # )
-                # # Fehlende Stuetzpunkte
-                # ereign_ft_i_vertices_df['gew_index_diff'] = ereign_ft_i_vertices_df['index_of_gew_vtx'].diff().fillna(1)
-                # if any (ereign_ft_i_vertices_df['gew_index_diff'] > 1):
-                    # ereign_fehlende_vtx = ereign_ft_i_vertices_df.loc[
-                        # ereign_ft_i_vertices_df['gew_index_diff'] > 1,
-                        # ['index', 'gew_index_diff']
-                    # ]
-                    # vtx_fehlend_list = ereign_fehlende_vtx.apply(
-                        # lambda x: (
-                            # '            zwischen Ereignis-Stützpunkt '
-                            # + str(int(x[0] - 1)) 
-                            # + ' und '
-                            # + str(int(x[0]))
-                            # +': '
-                            # + str(int(x[1] - 1))
-                            # + ' Stützpunkt(e)'
-                        # ), axis=1
-                    # ).tolist()
-                    # vtx_diff_text = (
-                        # vtx_diff_text
-                        # + '\n        Fehlende Stützpunkte:\n'
-                        # + '\n'.join(vtx_fehlend_list)
-                    # )
-                # if vtx_diff_text != '':
-                    # report_ereign_lage_dict.update({
-                        # 'Geometrie': vtx_diff_text
-                    # })
-
-            
-            # # Stationierung korrekt?
-            # if 'index_of_gew_vtx' in ereign_ft_i_vertices_df.columns:
-                # if ereign_ft_i.geometry.type() == 1:  # Linie
-                    # stat_von = ereign_ft_i[ereign_benoetigte_felder_ohneName[0]]
-                    # stat_bis = ereign_ft_i[ereign_benoetigte_felder_ohneName[1]]
-                    # if not stat_von == ereign_ft_i_vertices_df['gew_station'].to_list()[0]:
-                        # stationierung_fehler_text = (
-                            # stationierung_fehler_text 
-                            # + '\n        Stationierung (von = '
-                            # + str(stat_von)
-                            # + ') nicht mit Stationierung am Stützpunkt des Gewässers übereinstimmend ('
-                            # + str(ereign_ft_i_vertices_df['gew_station'].to_list()[0])
-                            # + ')'
-                        # )
-                    # if not stat_bis == ereign_ft_i_vertices_df['gew_station'].to_list()[-1]:
-                        # stationierung_fehler_text = (
-                            # stationierung_fehler_text 
-                            # + '\n        Stationierung (bis = '
-                            # + str(stat_bis)
-                            # + ') nicht mit Stationierung am Stützpunkt des Gewässers übereinstimmend ('
-                            # + str(ereign_ft_i_vertices_df['gew_station'].to_list()[-1])
-                            # + ')'
-                        # )
-                # else:  # Punkt
-                    # pass
-
-
-        # ereign_df.apply(
-            # lambda x: check_ereign_auf_linie(
-                # x,
-                # gew_df,
-                # ereign_benoetigte_felder,
-                # ereign_feld_id,
-                # err_df=None
-            # ),
-            # axis=1
-        # )
+                # naechster Stuetzpunkt danach
+                stp_start = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_start)[2]
+                stp_stop = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_ende)[2]
+                gew_idx_mittlere_vtc = list(range(stp_start, stp_stop))  # indices der mittleren Stuetzpunkte
+                
+                # Distanz zu den Stuetzpunkten
+                for ereign_vtx_idx in vtx_df.index:
+                    ereign_vtx_geom = vtx_df['ereign_sp'][ereign_vtx_idx]
+                    ereign_vtx_XY = ereign_vtx_geom.asPoint()  # XY-Geometrie des Ereignisstützpunkts
+                    if ereign_vtx_idx == 0:
+                        pass
+                    elif ereign_vtx_idx == vtx_df_maxIndex:
+                        pass
+                    else:
+                        gew_vtx_dist, gew_vtx_idx = gew_i_geom.closestVertexWithContext(ereign_vtx_XY)
+                        vtx_df.loc[ereign_vtx_idx, 'distanz_sp'] = gew_vtx_dist
+                        vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
+                    vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
+                if all(x == 0 for x in vtx_df['distanz_gew']):
+                    print(str(i+1)+': ok')
+                else:
+                    print(str(i+1)+': nope')
+                del vtx_df
+                feedback.setProgress(int(i * total_steps))
+ 
         
         with open(reportdatei, 'w') as f:
             f.write(

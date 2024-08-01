@@ -12,8 +12,8 @@ email=jannik.schilling@uni-rostock.de
 
 about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
 
-tracker=http://bugs
-repository=http://repo
+tracker=https://github.com/Jannik-Schilling/OSWeGe_Tools/issues
+repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
 # End of mandatory metadata
 
 # Recommended items:

@@ -23,6 +23,12 @@ feld_gew_stat_bis = 'ba_st_bis'
 # zu pruefenden Mindestlaenge fuer Gewaesser
 minimallaenge_gew = 0.5
 
+# Suchraum fuer die Stationierungsfunktion
+findGew_tolerance_dist = 0.2
+
+# Suchraum fuer die Checks
+distanz_suchen = 0
+
 # Fehldermeldungen
 pluginPath = os.path.dirname(__file__)
 df_fehlermeldungen = pd.read_csv(
@@ -48,8 +54,3 @@ class oswDataFeedback:
     GEOM_SENKE = 'GEOM_SENKE'
     GEOM_WASSERSCHEIDE = 'GEOM_WASSERSCHEIDE'
 
-# Suchraum fuer die Stationierungsfunktion
-findGew_tolerance_dist = 0.2
-
-# Suchraum fuer die Checks
-distanz_suchen = 0
