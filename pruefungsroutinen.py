@@ -118,7 +118,7 @@ def check_geometrie_duplikat(
     if len(lst) > 0:
         if with_id:
             if not isinstance(df_gew, pd.DataFrame):
-                raise TypeError("password must be a string")
+                raise TypeError("NoneType!")
             else:
                 fid = df_gew.loc[i, 'id']
                 dupl_fids = df_gew.loc[lst, 'id'].tolist()
@@ -137,7 +137,7 @@ def check_geometrie_konnektivitaet(
     distanz_suchen=0
 ):
     """
-    :param QgsGeomertry (Point) geom
+    :param QgsGeometry (Point) geom
     :param int fid: feature id im layer_gew
     :param QgsSpatialIndex index_gew
     :param QgsVectorLayer (line) layer_gew

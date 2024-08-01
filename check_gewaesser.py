@@ -213,6 +213,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 'Objekte': val_list
             }
 
+
         # Pruefroutinen fuer Geometrien
         datagen = (
             [
@@ -228,7 +229,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
             ]
         )
         del datagen
-
 
         # leere Geometrien
         feedback.setProgressText('Prüfe Geometrien:')
@@ -277,7 +277,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
             'Objekte': val_list
         }
 
-
         # Ueberschneidung mit anderen Geometrien
         feedback.setProgressText('- Ueberschneidung mit anderen Geometrien')
         val_list = []
@@ -298,7 +297,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
             'Report': oswDataFeedback.GEOM_INTERSECT,
             'Objekte': val_list
         }
-
 
         # Doppelte Geometrien
         feedback.setProgressText('- Doppelte Geometrien')
@@ -378,8 +376,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
             'Report': oswDataFeedback.GEOM_SENKE,
             'Objekte': val_list
         }
-
-
 
 
         # Bericht zusammenstellen

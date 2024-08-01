@@ -195,6 +195,7 @@ class checkEreignisse(QgsProcessingAlgorithm):
 
         # Pruefroutinen fuer Attribute
         feedback.setProgressText('Prüfe Attribute:')
+        fehlende_spalten = []
         for feld in benoetige_felder:
             test_spalte_vorh = 'Test_COL_'+feld+'_vorhanden'
             if report_dict[test_spalte_vorh]['Report'] == 0:
@@ -229,28 +230,24 @@ class checkEreignisse(QgsProcessingAlgorithm):
                     'Report': oswDataFeedback.VAL_MISSING,
                     'Objekte': val_list
                 }
+            else:
+                fehlende_spalten.append(feld)
+
 
         # Pruefroutinen fuer Geometrien
-        spalten_fuer_geomtest_vorhanden = 0
-        for feld in benoetige_felder:
-            test_spalte_vorh = 'Test_COL_'+feld+'_vorhanden'
-            if report_dict[test_spalte_vorh]['Report'] == 0:
-                pass
-            else:
-                spalten_fuer_geomtest_vorhanden = oswDataFeedback.COL_MISSING
-
-        if spalten_fuer_geomtest_vorhanden != 0:  # keine fehlenden Spalten
+        if len(fehlende_spalten) != 0:  # keine fehlenden Spalten
             feedback.pushWarning(
                 'Nicht alle benötigten Spalten vorhanden (siehe Report), Geometrietest wird übersprungen'
             )
         else:
+            feedback.setProgressText('Prüfe Geometrien:')
             # Ereignis-Layer
             datagen = (
                 [ft.id()] 
                 + [ft[feld] for feld in benoetige_felder] 
                 + [ft.geometry()] for ft in layer_ereign.getFeatures()
             )
-            df_ereign_felder = ['fid'] + benoetige_felder + ['geometry']
+            df_ereign_felder = ['id'] + benoetige_felder + ['geometry']
 
             df_ereign = pd.DataFrame.from_records(
                 data=datagen,
@@ -260,7 +257,7 @@ class checkEreignisse(QgsProcessingAlgorithm):
             
             # Gewaesser-Layer
             df_gew_felder = [
-                'fid',
+                'id',
                 feld_gew_name,
                 'geometry'
             ]
@@ -277,12 +274,13 @@ class checkEreignisse(QgsProcessingAlgorithm):
             )
             del datagen
             
-            print(report_dict)
 
             
-            # gew_name vorhanden?
-            # geometrie 
-        
+            # geometrie:
+            #    - leer
+            #    - multi
+            #    - nicht mit gewässer übereinstimmend
+            #    - fehlende Stützpunkte oder zu viele Stützpunkte
         
         
         

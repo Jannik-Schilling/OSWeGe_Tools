@@ -88,17 +88,18 @@ class PrintSnappedPoint(QgsMapToolEmitPoint):
         self.snapping_settings.setEnabled(True)
         self.layer_snaplist = layer_snaplist
         for ly in self.layer_snaplist:
-            if ly.geometryType() == QgsWkbTypes.LineGeometry:
-                self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex | Qgis.SnappingType.Segment)
-            else:
-                self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex)
-            self.snapping_settings.setTolerance(15)
-            self.snapping_settings.setUnits(QgsTolerance.Pixels)
-            self.snapping_config.setIndividualLayerSettings(
-                ly,
-                self.snapping_settings
-            )
-            self.snapping_utils.setConfig(self.snapping_config)
+            if ly is not None:
+                if ly.geometryType() == QgsWkbTypes.LineGeometry:
+                    self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex | Qgis.SnappingType.Segment)
+                else:
+                    self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex)
+                self.snapping_settings.setTolerance(15)
+                self.snapping_settings.setUnits(QgsTolerance.Pixels)
+                self.snapping_config.setIndividualLayerSettings(
+                    ly,
+                    self.snapping_settings
+                )
+                self.snapping_utils.setConfig(self.snapping_config)
         self.reset()
     
     def reset(self):
@@ -194,7 +195,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.gew_FieldComboBox.setEnabled(False)
         self.pushButton_start.setEnabled(False)
         self.pushButton_stop.setDisabled(False)
-        self.setWindowTitle("Stationierung Gewässer (Werkzeug aktiv)") 
+        self.setWindowTitle("Stationierung Gewässer (Werkzeug aktiv)")
 
     def set_grey(self):
         pa_w = QPalette()
