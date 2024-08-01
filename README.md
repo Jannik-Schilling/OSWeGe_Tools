@@ -12,4 +12,6 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
 
 ## Verfügbare Werkzeuge
 - Anzeige der Stationierung eines Gewässers (in der Werkeugleiste "Plugins")
+  ![abfrage_stationierung](https://github.com/user-attachments/assets/f4a8d121-707b-46d7-bd82-077841d0af92)
+
 - Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
