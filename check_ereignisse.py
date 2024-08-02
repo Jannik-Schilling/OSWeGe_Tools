@@ -178,11 +178,11 @@ class checkEreignisse(QgsProcessingAlgorithm):
                 'Typ': 'Attribut',
                 'Spalte': 'Spaltenname',
                 'Report': oswDataFeedback,
-                'Obj': [id1, id2]
+                'Objekte': [id1, id2]
             'Test3':
                 'Typ': 'Geometrie',
                 'Report': oswDataFeedback,
-                'Obj': [id1, id2] oder [[id1, id2][id3, id4]]
+                'Objekte': [id1, id2] (Einzelfehler) oder [[id1, id2][id3, id4]] (Ueberschneidungen etc.)
         }
         """
 
@@ -303,6 +303,7 @@ class checkEreignisse(QgsProcessingAlgorithm):
                     print('Falscher Gewässername' + str(i))
 
             feedback.setProgressText('> Geometrieübereinstimmung prüfen')
+            val_list = []
             for i, ft in enumerate(ereign_joined_layer.getFeatures()):
                 geom_i = ft.geometry()
                 # check if null or multi
@@ -346,12 +347,17 @@ class checkEreignisse(QgsProcessingAlgorithm):
                         vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
                     vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
                 if all(x == 0 for x in vtx_df['distanz_gew']):
-                    print(str(i+1)+': ok')
+                    pass
                 else:
-                    print(str(i+1)+': nope')
+                    val_list = val_list + [ft.id()]
                 del vtx_df
                 feedback.setProgress(int(i * total_steps))
- 
+            report_dict['Test_GEOM_NOT_ON_GEWLINE'] = {
+                'Typ': 'Geometrie',
+                'Report': oswDataFeedback.GEOM_NOT_ON_GEWLINE,
+                'Objekte': val_list
+            }
+
         
         with open(reportdatei, 'w') as f:
             f.write(
