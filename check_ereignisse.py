@@ -302,63 +302,66 @@ class checkEreignisse(QgsProcessingAlgorithm):
                 else:
                     print('Falscher Gewässername' + str(i))
 
-            feedback.setProgressText('> Geometrieübereinstimmung prüfen')
-            val_list = []
-            for i, ft in enumerate(ereign_joined_layer.getFeatures()):
-                geom_i = ft.geometry()
-                # check if null or multi
-                req_expression = QgsExpression("\"ba_cd\" = \'"+str(ft['gew_ba_cd'])+"\'")
-                gew_i = [f for f in layer_gew.getFeatures(QgsFeatureRequest(req_expression))][0]
-                gew_i_geom = gew_i.geometry()
-                vtx_df = pd.DataFrame({
-                    'ereign_sp': [QgsGeometry.fromPoint(vtx) for vtx in geom_i.vertices()],
-                    'naechster_gew_sp_idx': np.nan,
-                    'distanz_sp': np.nan,
-                    'distanz_gew': np.nan,
-                })
-                
-                vtx_df_maxIndex = vtx_df.index[-1]
-                ereign_vtx_start_geom = vtx_df['ereign_sp'][0]
-                ereign_vtx_ende_geom = vtx_df['ereign_sp'][vtx_df_maxIndex]
-                ereign_vtc_mittel_geom = vtx_df['ereign_sp'][1:vtx_df_maxIndex]
+            if layer_ereign.geometryType() == 1:
+                feedback.setProgressText('> Geometrieübereinstimmung prüfen')
+                val_list = []
+                for i, ft in enumerate(ereign_joined_layer.getFeatures()):
+                    geom_i = ft.geometry()
+                    # check if null or multi
+                    req_expression = QgsExpression("\"ba_cd\" = \'"+str(ft['gew_ba_cd'])+"\'")
+                    gew_i = [f for f in layer_gew.getFeatures(QgsFeatureRequest(req_expression))][0]
+                    gew_i_geom = gew_i.geometry()
+                    vtx_df = pd.DataFrame({
+                        'ereign_sp': [QgsGeometry.fromPoint(vtx) for vtx in geom_i.vertices()],
+                        'naechster_gew_sp_idx': np.nan,
+                        'distanz_sp': np.nan,
+                        'distanz_gew': np.nan,
+                    })
+                    
+                    vtx_df_maxIndex = vtx_df.index[-1]
+                    ereign_vtx_start_geom = vtx_df['ereign_sp'][0]
+                    ereign_vtx_ende_geom = vtx_df['ereign_sp'][vtx_df_maxIndex]
+                    ereign_vtc_mittel_geom = vtx_df['ereign_sp'][1:vtx_df_maxIndex]
 
-                # naechster Punkt auf dem Gewässer
-                nearest_gew_point_start = gew_i_geom.nearestPoint(ereign_vtx_start_geom)
-                nearest_gew_xy_start = nearest_gew_point_start.asPoint()
-                nearest_gew_point_ende = gew_i_geom.nearestPoint(ereign_vtx_ende_geom)
-                nearest_gew_xy_ende = nearest_gew_point_ende.asPoint()
+                    # naechster Punkt auf dem Gewässer
+                    nearest_gew_point_start = gew_i_geom.nearestPoint(ereign_vtx_start_geom)
+                    nearest_gew_xy_start = nearest_gew_point_start.asPoint()
+                    nearest_gew_point_ende = gew_i_geom.nearestPoint(ereign_vtx_ende_geom)
+                    nearest_gew_xy_ende = nearest_gew_point_ende.asPoint()
 
-                # naechster Stuetzpunkt danach
-                stp_start = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_start)[2]
-                stp_stop = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_ende)[2]
-                gew_idx_mittlere_vtc = list(range(stp_start, stp_stop))  # indices der mittleren Stuetzpunkte
-                
-                # Distanz zu den Stuetzpunkten
-                for ereign_vtx_idx in vtx_df.index:
-                    ereign_vtx_geom = vtx_df['ereign_sp'][ereign_vtx_idx]
-                    ereign_vtx_XY = ereign_vtx_geom.asPoint()  # XY-Geometrie des Ereignisstützpunkts
-                    if ereign_vtx_idx == 0:
-                        pass
-                    elif ereign_vtx_idx == vtx_df_maxIndex:
+                    # naechster Stuetzpunkt danach
+                    stp_start = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_start)[2]
+                    stp_stop = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_ende)[2]
+                    gew_idx_mittlere_vtc = list(range(stp_start, stp_stop))  # indices der mittleren Stuetzpunkte
+                    
+                    # Distanz zu den Stuetzpunkten
+                    for ereign_vtx_idx in vtx_df.index:
+                        ereign_vtx_geom = vtx_df['ereign_sp'][ereign_vtx_idx]
+                        ereign_vtx_XY = ereign_vtx_geom.asPoint()  # XY-Geometrie des Ereignisstützpunkts
+                        if ereign_vtx_idx == 0:
+                            pass
+                        elif ereign_vtx_idx == vtx_df_maxIndex:
+                            pass
+                        else:
+                            gew_vtx_dist, gew_vtx_idx = gew_i_geom.closestVertexWithContext(ereign_vtx_XY)
+                            vtx_df.loc[ereign_vtx_idx, 'distanz_sp'] = gew_vtx_dist
+                            vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
+                        vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
+                    if all(x == 0 for x in vtx_df['distanz_gew']):
                         pass
                     else:
-                        gew_vtx_dist, gew_vtx_idx = gew_i_geom.closestVertexWithContext(ereign_vtx_XY)
-                        vtx_df.loc[ereign_vtx_idx, 'distanz_sp'] = gew_vtx_dist
-                        vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
-                    vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
-                if all(x == 0 for x in vtx_df['distanz_gew']):
-                    pass
-                else:
-                    val_list = val_list + [ft.id()]
-                del vtx_df
-                feedback.setProgress(int(i * total_steps))
-            report_dict['Test_GEOM_NOT_ON_GEWLINE'] = {
-                'Typ': 'Geometrie',
-                'Report': oswDataFeedback.GEOM_NOT_ON_GEWLINE,
-                'Objekte': val_list
-            }
+                        val_list = val_list + [ft.id()]
+                    del vtx_df
+                    feedback.setProgress(int(i * total_steps))
+                report_dict['Test_GEOM_NOT_ON_GEWLINE'] = {
+                    'Typ': 'Geometrie',
+                    'Report': oswDataFeedback.GEOM_NOT_ON_GEWLINE,
+                    'Objekte': val_list
+                }
+            else: # Punkte
+                feedback.setProgressText('> Lage der Punktgeometrie prüfen')
+                val_list = []
 
-        
         with open(reportdatei, 'w') as f:
             f.write(
                 '**************************************'
