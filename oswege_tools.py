@@ -81,6 +81,8 @@ class oswege_tools_buttons:
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&oswege_tools')
+        self.toolbar = self.iface.addToolBar('OswegeTools')
+        self.toolbar.setObjectName('OswegeTools')
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -170,7 +172,8 @@ class oswege_tools_buttons:
 
         if add_to_toolbar:
             # Adds plugin icon to Plugins toolbar
-            self.iface.addToolBarIcon(action)
+            # self.iface.addToolBarIcon(action)
+            self.toolbar.addAction(action)
 
         if add_to_menu:
             self.iface.addPluginToMenu(
