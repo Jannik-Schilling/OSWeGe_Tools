@@ -62,8 +62,11 @@ class checkGewaesser(QgsProcessingAlgorithm):
     """
     Prueft Gewaesserdaten
     """
-    FELD_GEWNAME = 'FELD_GEWNAME'
-    GEWAESSER_LAYER = 'GEWAESSER_LAYER'
+    LAYER_GEWAESSER = 'LAYER_GEWAESSER'
+    LAYER_ROHLEITUNGEN = 'LAYER_ROHLEITUNGEN'
+    LAYER_DURCHLAESSE = 'LAYER_DURCHLAESSE'
+    LAYER_WEHRE = 'LAYER_WEHRE'
+    LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
 
     def initAlgorithm(self, config):
@@ -74,8 +77,44 @@ class checkGewaesser(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GEWAESSER_LAYER,
-                self.tr('Gewässerlayer'),
+                self.tr('Gewässer-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.LAYER_ROHLEITUNGEN,
+                self.tr('Rohrleitungs-Layer'),
+                [QgsProcessing.SourceType.TypeVectorLine],
+                optional = True
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.LAYER_DURCHLAESSE,
+                self.tr('Durchlässe-Layer'),
+                [QgsProcessing.SourceType.TypeVectorLine],
+                optional = True
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.LAYER_WEHRE,
+                self.tr('Wehre-Layer'),
+                [QgsProcessing.SourceType.TypeVectorPoint],
+                optional = True
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.LAYER_SCHAECHTE,
+                self.tr('Schächte-Layer'),
+                [QgsProcessing.SourceType.TypeVectorPoint],
+                optional = True
             )
         )
 
@@ -93,6 +132,10 @@ class checkGewaesser(QgsProcessingAlgorithm):
         Hier findet die Verarbeitung statt
         """
         layer_gew = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
+        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
+        layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
+        layer_wehre = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
+        layer_schaechte = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
         # provider_gew = layer_gew.dataProvider()
         # index_gew = QgsSpatialIndex(layer_gew.getFeatures())
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
@@ -104,11 +147,16 @@ class checkGewaesser(QgsProcessingAlgorithm):
         # Zusammenfassendes dictionary fuer Prozessparameter
         params = {
             'layer_gew': layer_gew,
+            'layer_rohrleitungen': layer_rohrleitungen,
+            'layer_durchlaesse': layer_durchlaesse,
+            'layer_wehre': layer_wehre,
+            'layer_schaechte': layer_schaechte,
             #'provider_gew':provider_gew,
             'feedback': feedback,
             #'index_gew': index_gew,
             'feld_gew_name': feld_gew_name,
-            'distanz_suchen': distanz_suchen
+            'distanz_suchen': distanz_suchen,
+            'feedback': feedback,
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
@@ -131,7 +179,8 @@ class checkGewaesser(QgsProcessingAlgorithm):
         }
         """
 
-
+        feedback.setProgressText('Gewässerlayer:')
+        feedback.setProgressText('Prüfe Attribute:')
         # Alle benoetigten Spalten im Layer?
         report_dict['Test_COL_ID_vorhanden'] = {
             'Typ': 'allgemein',
@@ -144,7 +193,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
 
         # Pruefroutinen fuer Attribute
         if report_dict['Test_COL_ID_vorhanden']['Report'] == 0:
-            feedback.setProgressText('Prüfe Attribute:')
             datagen = (
                 [
                     ft.id(),
@@ -203,6 +251,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
 
 
         # Pruefroutinen fuer Geometrien
+        feedback.setProgressText('Prüfe auf Geometriefehler:')
         datagen = (
             [
                 ft.id(),
@@ -219,7 +268,6 @@ class checkGewaesser(QgsProcessingAlgorithm):
         del datagen
 
         # leere Geometrien
-        feedback.setProgressText('Prüfe Geometrien:')
         feedback.setProgressText('- leere Geometrien')
         val_list = []
         for i, val in enumerate(df_gew['geometrie']):

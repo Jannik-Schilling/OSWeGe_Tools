@@ -14,7 +14,7 @@ feld_typen = {
 }
 
 # Felder im Gewaesserlayer
-feld_gew_name = 'BA_CD'
+feld_gew_name = 'ba_cd'
 feld_gew_laenge = 'laenge'
 feld_gew_stat_von = 'ba_st_von'
 feld_gew_stat_bis = 'ba_st_bis'

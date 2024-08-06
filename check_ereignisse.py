@@ -88,17 +88,6 @@ class checkEreignisse(QgsProcessingAlgorithm):
                 [QgsProcessing.SourceType.TypeVectorLine, QgsProcessing.SourceType.TypeVectorPoint]
             )
         )
-        
-        # self.addParameter(
-            # QgsProcessingParameterField(
-                # self.FELD_ID,
-                # self.tr("Eindeutiger Ereignis-Objektname / ID / fid"),
-                # parentLayerParameterName = self.EREIGNIS_LAYER,
-                # defaultValue = 'fid',
-                # type = QgsProcessingParameterField.Any,
-                # optional = True
-            # )
-        # )
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
@@ -131,9 +120,8 @@ class checkEreignisse(QgsProcessingAlgorithm):
         total_steps = 100.0/total if total != 0 else 0
         layer_gew = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
-        # feld_ereign_id = self.parameterAsString(parameters, self.FELD_ID, context)
 
-        
+
         # Festlegungen
         params = {
             'layer_ereign': layer_ereign,
