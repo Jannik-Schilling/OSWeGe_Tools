@@ -218,7 +218,6 @@ class oswege_tools_buttons:
 
     def run(self):
         """Run method that performs all the real work"""
-
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start == True:
@@ -227,13 +226,5 @@ class oswege_tools_buttons:
             self.dlg = stationierungDialog(
                 canvas=self.canvas
             )
-            #canvasSize = self.canvas.size()
-            #canvasHeight = canvasSize.height()
-            #canvasWidth = canvasSize.width()
-            #x_pos = self.canvas.window().pos().x()+canvasWidth-100  # toprigth 
-            #y_pos = self.canvas.window().pos().y()+50  # Example y position
-            #self.dlg.move(x_pos, y_pos)
-
-        # show the dialog
         self.dlg.show()
 

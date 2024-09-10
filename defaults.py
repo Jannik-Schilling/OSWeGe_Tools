@@ -13,12 +13,16 @@ feld_typen = {
     'Real' : 'float'
 }
 
-# Felder im Gewaesserlayer
-feld_gew_name = 'ba_cd'
-feld_gew_laenge = 'laenge'
-feld_gew_stat_von = 'ba_st_von'
-feld_gew_stat_bis = 'ba_st_bis'
-
+# Pflichtfelder: der erste ist Primaerschluessel bei gewässern
+pflichtfelder = {
+    'gewaesser': ['ba_cd', 'gu_cd'],
+    'rohrleitungen': ['obj_nr_gu', 'gu_cd', 'profil'],
+    'durchlaesse': ['obj_nr_gu', 'gu_cd', 'profil'],
+    'wehre':['obj_nr_gu', 'name', 'gu_cd', 'wehr'],
+    'schaechte':['obj_nr_gu', 'name', 'gu_cd', 'scha'],
+}
+# Schluessel zur Identifikation des Gewaessers bei Ereignissen
+ereign_gew_id_feld = ['gu_cd', 'ba_cd']
 
 # zu pruefenden Mindestlaenge fuer Gewaesser
 minimallaenge_gew = 0.5
@@ -38,20 +42,4 @@ df_fehlermeldungen = pd.read_csv(
     ),
     encoding = 'windows-1252'
 )
-
-class oswDataFeedback:
-    COL_MISSING = 'COL_MISSING'
-    COL_ID_MISSING = 'COL_ID_MISSING'
-    VAL_DUPLICAT = 'VAL_DUPLICAT'
-    VAL_MISSING = 'VAL_MISSING'
-    VAL_ERROR = 'VAL_ERROR'
-    GEOM_EMPTY = 'GEOM_EMPTY'
-    GEOM_MULTI = 'GEOM_MULTI'
-    GEOM_SELFINTERSECT = 'GEOM_SELFINTERSECT'
-    GEOM_INTERSECT = 'GEOM_INTERSECT'
-    GEOM_DUPLICAT = 'GEOM_DUPLICAT'
-    GEOM_TOOSHORT = 'GEOM_TOOSHORT'
-    GEOM_SENKE = 'GEOM_SENKE'
-    GEOM_WASSERSCHEIDE = 'GEOM_WASSERSCHEIDE'
-    GEOM_NOT_ON_GEWLINE = 'GEOM_NOT_ON_GEWLINE'
 

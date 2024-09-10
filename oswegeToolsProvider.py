@@ -30,8 +30,7 @@ __copyright__ = '(C) 2024 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 import os
 from qgis.core import QgsProcessingProvider
-from .check_gewaesser import checkGewaesser
-from .check_ereignisse import checkEreignisse
+from .check_gew_daten import checkGewaesserDaten
 from qgis.PyQt.QtGui import QIcon
 
 pluginPath = os.path.dirname(__file__)
@@ -55,8 +54,7 @@ class oswegeToolsProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        self.addAlgorithm(checkGewaesser())
-        self.addAlgorithm(checkEreignisse())
+        self.addAlgorithm(checkGewaesserDaten())
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 

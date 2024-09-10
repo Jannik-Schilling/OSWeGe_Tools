@@ -29,26 +29,30 @@ __copyright__ = '(C) 2024 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.core import (NULL,
-                       QgsProcessing,
-                       QgsProcessingAlgorithm,
-                       QgsProcessingParameterField,
-                       QgsProcessingParameterFileDestination,
-                       QgsProcessingParameterVectorLayer,
-                       QgsSpatialIndex)
+from qgis.core import (
+    NULL,
+    QgsExpression,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterField,
+    QgsProcessingParameterFileDestination,
+    QgsProcessingParameterVectorLayer,
+    QgsSpatialIndex
+)
+from qgis import processing
 from collections import Counter
 import pandas as pd
 
 from .defaults import (
     distanz_suchen,
-    feld_gew_name,
+    pflichtfelder,
+    ereign_gew_id_feld,
     minimallaenge_gew,
-    oswScriptType,
-    oswDataFeedback
+    oswScriptType
 )
 from .pruefungsroutinen import (
-    check_spalte_vorhanden,
-    check_wert_fehlend,
     check_geometrie_wasserscheide_senke,
     check_geometrie_leer,
     check_geometrie_multi,
@@ -58,7 +62,7 @@ from .pruefungsroutinen import (
 )
 from .meldungen import fehlermeldungen_generieren
 
-class checkGewaesser(QgsProcessingAlgorithm):
+class checkGewaesserDaten(QgsProcessingAlgorithm):
     """
     Prueft Gewaesserdaten
     """
@@ -76,7 +80,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
         """
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.GEWAESSER_LAYER,
+                self.LAYER_GEWAESSER,
                 self.tr('Gewässer-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine]
             )
@@ -131,66 +135,81 @@ class checkGewaesser(QgsProcessingAlgorithm):
         """
         Hier findet die Verarbeitung statt
         """
-        layer_gew = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
-        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
-        layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
-        layer_wehre = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
-        layer_schaechte = self.parameterAsVectorLayer(parameters, self.GEWAESSER_LAYER, context)
-        # provider_gew = layer_gew.dataProvider()
-        # index_gew = QgsSpatialIndex(layer_gew.getFeatures())
+        layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
+        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHLEITUNGEN, context)
+        layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.LAYER_DURCHLAESSE, context)
+        layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
+        layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
-
-        # Anzahl Objekte
-        total = layer_gew.featureCount() if layer_gew.featureCount() else 0
-        total_steps = 100.0/total if total != 0 else 0
 
         # Zusammenfassendes dictionary fuer Prozessparameter
         params = {
-            'layer_gew': layer_gew,
-            'layer_rohrleitungen': layer_rohrleitungen,
-            'layer_durchlaesse': layer_durchlaesse,
-            'layer_wehre': layer_wehre,
-            'layer_schaechte': layer_schaechte,
-            #'provider_gew':provider_gew,
-            'feedback': feedback,
-            #'index_gew': index_gew,
-            'feld_gew_name': feld_gew_name,
-            'distanz_suchen': distanz_suchen,
-            'feedback': feedback,
+            'layer_dict': {
+                'gewaesser': {'layer': layer_gew},
+                'rohrleitungen': {'layer': layer_rohrleitungen},
+                'durchlaesse': {'layer': layer_durchlaesse},
+                'wehre': {'layer': layer_wehre},
+                'schaechte': {'layer': layer_schaechte},
+            },
+            'feedback': feedback
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
         report_dict = {}
         """
         report_dict = {
-            'Test1': {
-                'Typ': 'allgemein',
-                'Report': 0 / oswDataFeedback
+            'gewaesser': {
+                'name': 'so heisst die Datei",
+                'attribute': {
+                    'fehlende_felder': [],
+                    'primaerschluessel_leer': [id1, id2],
+                    'primaerschluessel_mehrfach': [[id3, id4],[id5, id6, id7]]
+                    },
+                'geometrien': {
+                    fehler1: [],
+                    fehler2: []
+                }
             },
-            'Test2':
-                'Typ': 'Attribut',
-                'Spalte': 'Spaltenname',
-                'Report': oswDataFeedback,
-                'Obj': [id1, id2]
-            'Test3':
-                'Typ': 'Geometrie',
-                'Report': oswDataFeedback,
-                'Obj': [id1, id2] oder [[id1, id2][id3, id4]]
+            'rohrleitungen': {
+                'name': 'so heisst die Datei",
+                'attribute': {
+                    'fehlende_felder': [],
+                    #'primaerschluessel_leer': [id1, id2],
+                    #'primaerschluessel_mehrfach': [[id3, id4],[id5, id6, id7]],
+                    'gewschluessel_leer: [id1, id2],
+                    'gewschluessel_ungueltig: [id4, id5] /  # nicht im layer_gew
+                    },
+                'geometrien': {
+                    fehler1: [],
+                    fehler2: []
+                }
+            }
         }
         """
 
-        feedback.setProgressText('Gewässerlayer:')
         feedback.setProgressText('Prüfe Attribute:')
-        # Alle benoetigten Spalten im Layer?
-        report_dict['Test_COL_ID_vorhanden'] = {
-            'Typ': 'allgemein',
-            'Report': check_spalte_vorhanden(
-                spaltenname=feld_gew_name,
-                layer=layer_gew,
-                **params
-            )
-        }
+        for key, value in params['layer_dict'].items():
+            layer = value['layer']
+            if layer:
+                # Anzahl Objekte
+                ft_count = layer.featureCount() if layer.featureCount() else 0
+                layer_steps = 100.0/ft_count if ft_count != 0 else 0
+                params['layer_dict'][key].update({
+                    'count': ft_count,
+                    'steps': layer_steps
+                })
 
+                # pflichtfelder vorhanden?
+                pflichtfelder_i = pflichtfelder[key]
+                layer_i_felder = layer.fields().names()
+                fehlende_felder = [feld for feld in pflichtfelder_i if not feld in layer_i_felder]
+                
+                if key == 'gewaesser':
+                    #primaerschluessel_leer
+                    #primaerschluessel_mehrfach
+                else:
+                    
+        """
         # Pruefroutinen fuer Attribute
         if report_dict['Test_COL_ID_vorhanden']['Report'] == 0:
             datagen = (
@@ -240,7 +259,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                     pass
                 else:
                     val_list = val_list + [df_gew.loc[i, 'id']]
-                feedback.setProgress(int(i * total_steps))
+                feedback.setProgress(int(i * total_gew_steps))
             report_dict['Test_VAL_ID_MISSING'] = {
                 'Typ': 'Attribut',
                 'Spalte': feld_gew_name,
@@ -275,7 +294,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_EMPTY'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_EMPTY,
@@ -290,7 +309,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_MULTI'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_MULTI,
@@ -306,7 +325,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 pass
             else:
                 val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_SELFINTERSECT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_SELFINTERSECT,
@@ -327,7 +346,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
             else:
                 if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                     val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_INTERSECT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_INTERSECT,
@@ -350,7 +369,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
             else:
                 if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                     val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_DUPLICAT'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_DUPLICAT,
@@ -379,7 +398,7 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 if not dupl:
                     if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                         val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_WASSERSCHEIDE'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_WASSERSCHEIDE,
@@ -406,12 +425,100 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 if not dupl:
                     if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
                         val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total_steps))
+            feedback.setProgress(int(i * total_gew_steps))
         report_dict['Test_GEOM_SENKE'] = {
             'Typ': 'Geometrie',
             'Report': oswDataFeedback.GEOM_SENKE,
             'Objekte': val_list
         }
+
+        # Geometrieprüfungen hier nur fuer Ereignisse
+        layer_typ = ''
+        if layer_typ == 'Ereignis':
+            # Übereinstimmung mit Gewässergeometrie
+            feedback.setProgressText('- Übereinstimmung mit Gewässergeometrie')
+            
+            feedback.setProgressText('> Gewässername prüfen')
+            ereign_joined_layer = processing.run(
+                "native:joinbynearest",
+                {
+                    'INPUT': layer_ereign,
+                    'INPUT_2': layer_gew,
+                    'FIELDS_TO_COPY': ['ba_cd'],
+                    'DISCARD_NONMATCHING': False,
+                    'PREFIX':'gew_', 
+                    'NEIGHBORS':1, 
+                    'MAX_DISTANCE': None,
+                    'OUTPUT':'memory:'
+                },
+                context=context,
+                feedback=feedback
+            )['OUTPUT']
+            for i, ft in enumerate(ereign_joined_layer.getFeatures()):
+                if ft['ba_cd'] == ft['gew_ba_cd']:
+                    pass
+                else:
+                    print('Falscher Gewässername' + str(i))
+
+            if layer_ereign.geometryType() == 1:
+                feedback.setProgressText('> Geometrieübereinstimmung prüfen')
+                val_list = []
+                for i, ft in enumerate(ereign_joined_layer.getFeatures()):
+                    geom_i = ft.geometry()
+                    # check if null or multi
+                    req_expression = QgsExpression("\"ba_cd\" = \'"+str(ft['gew_ba_cd'])+"\'")
+                    gew_i = [f for f in layer_gew.getFeatures(QgsFeatureRequest(req_expression))][0]
+                    gew_i_geom = gew_i.geometry()
+                    vtx_df = pd.DataFrame({
+                        'ereign_sp': [QgsGeometry.fromPoint(vtx) for vtx in geom_i.vertices()],
+                        'naechster_gew_sp_idx': np.nan,
+                        'distanz_sp': np.nan,
+                        'distanz_gew': np.nan,
+                    })
+                    
+                    vtx_df_maxIndex = vtx_df.index[-1]
+                    ereign_vtx_start_geom = vtx_df['ereign_sp'][0]
+                    ereign_vtx_ende_geom = vtx_df['ereign_sp'][vtx_df_maxIndex]
+                    ereign_vtc_mittel_geom = vtx_df['ereign_sp'][1:vtx_df_maxIndex]
+
+                    # naechster Punkt auf dem Gewässer
+                    nearest_gew_point_start = gew_i_geom.nearestPoint(ereign_vtx_start_geom)
+                    nearest_gew_xy_start = nearest_gew_point_start.asPoint()
+                    nearest_gew_point_ende = gew_i_geom.nearestPoint(ereign_vtx_ende_geom)
+                    nearest_gew_xy_ende = nearest_gew_point_ende.asPoint()
+
+                    # naechster Stuetzpunkt danach
+                    stp_start = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_start)[2]
+                    stp_stop = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_ende)[2]
+                    gew_idx_mittlere_vtc = list(range(stp_start, stp_stop))  # indices der mittleren Stuetzpunkte
+                    
+                    # Distanz zu den Stuetzpunkten
+                    for ereign_vtx_idx in vtx_df.index:
+                        ereign_vtx_geom = vtx_df['ereign_sp'][ereign_vtx_idx]
+                        ereign_vtx_XY = ereign_vtx_geom.asPoint()  # XY-Geometrie des Ereignisstützpunkts
+                        if ereign_vtx_idx == 0:
+                            pass
+                        elif ereign_vtx_idx == vtx_df_maxIndex:
+                            pass
+                        else:
+                            gew_vtx_dist, gew_vtx_idx = gew_i_geom.closestVertexWithContext(ereign_vtx_XY)
+                            vtx_df.loc[ereign_vtx_idx, 'distanz_sp'] = gew_vtx_dist
+                            vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
+                        vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
+                    if all(x == 0 for x in vtx_df['distanz_gew']):
+                        pass
+                    else:
+                        val_list = val_list + [ft.id()]
+                    del vtx_df
+                    feedback.setProgress(int(i * total_steps))
+                report_dict['Test_GEOM_NOT_ON_GEWLINE'] = {
+                    'Typ': 'Geometrie',
+                    'Report': oswDataFeedback.GEOM_NOT_ON_GEWLINE,
+                    'Objekte': val_list
+                }
+            else: # Punkte
+                feedback.setProgressText('> Lage der Punktgeometrie prüfen')
+                val_list = []
 
 
         # Bericht zusammenstellen
@@ -426,14 +533,14 @@ class checkGewaesser(QgsProcessingAlgorithm):
                 f.write(fehlermeldungen_generieren(val))
 
         feedback.pushInfo('Report gespeichert in ' + str(reportdatei)+ '\n')
-
+        """
         return {}
 
     def name(self):
-        return 'Pruefroutine_Gewaesserlinie'
+        return 'Pruefroutine_Gewaesserdaten'
 
     def displayName(self):
-        return '1_Pruefroutine_Gewaesserlinie'
+        return 'Pruefroutine_Gewaesserdaten'
 
     def group(self):
         return self.tr(self.groupId())
@@ -445,4 +552,4 @@ class checkGewaesser(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return checkGewaesser()
+        return checkGewaesserDaten()

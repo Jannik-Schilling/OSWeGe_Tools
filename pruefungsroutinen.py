@@ -14,42 +14,7 @@ from qgis.gui import (
 
 import pandas as pd
 
-from .defaults import oswDataFeedback
-
-def check_spalte_vorhanden(
-    spaltenname,
-    layer,
-    feedback=QgsProcessingFeedback,
-    **kwargs
-):
-    '''
-    :param str spaltenname
-    :param QgsVectorLayer layer
-    :param QgsProcessingFeedback feedback
-    '''
-    felder = layer.fields().names()
-    if spaltenname in felder:
-        return 0
-    elif spaltenname in [f.lower() for f in felder]:
-        feedback.reportError(
-            'Schreibweise der Spaltennamen beachten! Spalte: \"'
-            + spaltenname
-            + '\". Bitte umbenennen.'
-        )
-        return oswDataFeedback.COL_ID_MISSING
-    else:
-        return oswDataFeedback.COL_ID_MISSING
-
-def check_wert_fehlend(wert):
-    '''
-    :param str/int/float wert
-    '''
-    if wert == NULL:
-        return oswDataFeedback.VAL_MISSING
-    elif (type(wert) == str) and (wert == ''):
-        return oswDataFeedback.VAL_MISSING
-    else:
-        return 0
+oswDataFeedback = None
 
 
 def check_geometrie_leer(geom):
