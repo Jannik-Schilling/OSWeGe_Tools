@@ -17,54 +17,6 @@ import pandas as pd
 oswDataFeedback = None
 
 
-def check_geometrie_leer(geom):
-    '''
-    :param QgsGeomertry geom
-    '''
-    if geom.isEmpty():
-        return oswDataFeedback.GEOM_EMPTY
-    else:
-        return 0
-
-def check_geometrie_multi(geom):
-    '''
-    :param QgsGeomertry geom
-    '''
-    if geom.isEmpty():
-        return 0
-    else:
-        if geom.isMultipart():
-            geom_poly = geom.asMultiPolyline() 
-        else:
-            geom_poly = [f for f in geom.parts()]
-        if len(geom_poly) > 1:
-            return oswDataFeedback.GEOM_MULTI
-        else:
-            return 0
-
-def check_geometrie_selbstueberschneidung(geom):
-    '''
-    :param QgsGeomertry geom
-    '''
-    if not geom.isSimple() and (not geom.isEmpty()):
-        return oswDataFeedback.GEOM_SELFINTERSECT
-    else:
-        return 0
-    
-def check_geometrie_ueberschneidung_mit_anderen(geom, fid, df_gew):
-    '''
-    :param QgsGeomertry geom
-    :param int fid
-    :param pd.df df_gew
-    '''
-    geomlist = df_gew['geometrie']
-    lst = [i for i, g in enumerate(geomlist) if geom.crosses(g)]
-    if len(lst) > 0:
-        inters_fids = [df_gew.loc[i, 'id'] for i in lst]
-        return oswDataFeedback.GEOM_INTERSECT, [fid]+inters_fids
-    else:
-        return 0
-
 def check_geometrie_duplikat(
     geom,
     i,
@@ -87,9 +39,9 @@ def check_geometrie_duplikat(
             else:
                 fid = df_gew.loc[i, 'id']
                 dupl_fids = df_gew.loc[lst, 'id'].tolist()
-                return oswDataFeedback.GEOM_DUPLICAT, [fid]+dupl_fids
+                return 1, [fid]+dupl_fids
         else:
-            return oswDataFeedback.GEOM_DUPLICAT
+            return 1
     else:
         return 0
 
@@ -165,11 +117,11 @@ def check_geometrie_wasserscheide_senke(
                 0,
                 [vtx, check_vtx]
             )]
-        if all([x == oswDataFeedback.GEOM_DUPLICAT for x in check_dupl_list]):
+        if all([x == 1 for x in check_dupl_list]):
             if senke:
-                return oswDataFeedback.GEOM_SENKE, [fid]+intersecting_lines
+                return 1, [fid]+intersecting_lines
             else:
-                return oswDataFeedback.GEOM_WASSERSCHEIDE, [fid]+intersecting_lines
+                return 2, [fid]+intersecting_lines
         else:
             return 0
 

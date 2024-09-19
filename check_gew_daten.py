@@ -42,23 +42,16 @@ from qgis.core import (
     QgsSpatialIndex
 )
 from qgis import processing
-from collections import Counter
-import pandas as pd
 
 from .defaults import (
     distanz_suchen,
     pflichtfelder,
-    ereign_gew_id_feld,
+    list_ereign_gew_id_fields,
     minimallaenge_gew,
     oswScriptType
 )
 from .pruefungsroutinen import (
-    check_geometrie_wasserscheide_senke,
-    check_geometrie_leer,
-    check_geometrie_multi,
-    check_geometrie_selbstueberschneidung,
-    check_geometrie_ueberschneidung_mit_anderen,
-    check_geometrie_duplikat
+    check_geometrie_wasserscheide_senke
 )
 from .meldungen import fehlermeldungen_generieren
 
@@ -151,7 +144,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 'wehre': {'layer': layer_wehre},
                 'schaechte': {'layer': layer_schaechte},
             },
-            'feedback': feedback
+            'feedback': feedback,
+            'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # gu_cd, ba_cd
+            'emptystrdef': [NULL, ''],
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
@@ -161,10 +156,10 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             'gewaesser': {
                 'name': 'so heisst die Datei",
                 'attribute': {
-                    'fehlende_felder': [],
-                    'primaerschluessel_leer': [id1, id2],
-                    'primaerschluessel_mehrfach': [[id3, id4],[id5, id6, id7]]
-                    },
+                    'missing_fields': [],
+                    'primary_key_empty': [id1, id2],
+                    'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
+                },
                 'geometrien': {
                     fehler1: [],
                     fehler2: []
@@ -173,12 +168,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             'rohrleitungen': {
                 'name': 'so heisst die Datei",
                 'attribute': {
-                    'fehlende_felder': [],
-                    #'primaerschluessel_leer': [id1, id2],
-                    #'primaerschluessel_mehrfach': [[id3, id4],[id5, id6, id7]],
-                    'gewschluessel_leer: [id1, id2],
-                    'gewschluessel_ungueltig: [id4, id5] /  # nicht im layer_gew
-                    },
+                    'missing_fields': [],
+                    #'primary_key_empty': [id1, id2],
+                    #'primary_key_duplicat': [[id3, id4],[id5, id6, id7]],
+                    'gew_key_empty': [id1, id2],
+                    'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
+                },
                 'geometrien': {
                     fehler1: [],
                     fehler2: []
@@ -191,191 +186,141 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         for key, value in params['layer_dict'].items():
             layer = value['layer']
             if layer:
-                # Anzahl Objekte
+                # Anzahl Objekte fuer das Feedback
                 ft_count = layer.featureCount() if layer.featureCount() else 0
                 layer_steps = 100.0/ft_count if ft_count != 0 else 0
                 params['layer_dict'][key].update({
                     'count': ft_count,
                     'steps': layer_steps
                 })
+                report_dict[key] = {'name': layer.name()}
 
-                # pflichtfelder vorhanden?
-                pflichtfelder_i = pflichtfelder[key]
-                layer_i_felder = layer.fields().names()
-                fehlende_felder = [feld for feld in pflichtfelder_i if not feld in layer_i_felder]
-                
-                if key == 'gewaesser':
-                    #primaerschluessel_leer
-                    #primaerschluessel_mehrfach
-                else:
-                    
-        """
-        # Pruefroutinen fuer Attribute
-        if report_dict['Test_COL_ID_vorhanden']['Report'] == 0:
-            datagen = (
-                [
-                    ft.id(),
-                    ft[feld_gew_name],
-                ] for ft in layer_gew.getFeatures()
-            )
-            df_gew = pd.DataFrame.from_records(
-                data=datagen,
-                columns=[
-                    'id',
-                    feld_gew_name
-                ]
-            )
-            del datagen
+        def main_check(key, report_dict, params):
+            """
+            Diese Hauptfunktion wird durchlaufen, um alle Layer zu pruefen
+            :param str key
+            :param dict report_dict
+            :param dict params
+            """
+            layer = params['layer_dict'][key]['layer']
+            # pflichtfelder vorhanden?
+            pflichtfelder_i = pflichtfelder[key]
+            layer_i_felder = layer.fields().names()
+            missing_fields = [feld for feld in pflichtfelder_i if not feld in layer_i_felder]
 
-
-            # eindeutiger Gewaessername?
-            feedback.setProgressText('- eindeutiger Gewaessername')
-            name_Counter = Counter(df_gew[feld_gew_name])
-            val_list = []
-            steps = len(name_Counter)/100
-            i = 0
-            for val, ct in name_Counter.items():
-                if val != NULL:
-                    if ct == 1:
-                        pass
-                    else:
-                        val_list = val_list + [df_gew.loc[df_gew[feld_gew_name]==val, 'id'].tolist()]
-                i = i+1
-                feedback.setProgress(int(i * steps))
-            report_dict['Test_VAL_ID_DUPLICAT'] = {
-                    'Typ': 'Attribut',
-                    'Spalte': feld_gew_name,
-                    'Report': oswDataFeedback.VAL_DUPLICAT,
-                    'Objekte': val_list
+            # Attribute
+            emptystrdef = params['emptystrdef']
+            ereign_gew_id_field = params['ereign_gew_id_field']
+            if ereign_gew_id_field in missing_fields:
+                report_dict[key]['attribute'] = {
+                    'missing_fields': missing_fields
                 }
-                
-
-
-            # fehlender Gewaessername?
-            feedback.setProgressText('- fehlende Gewaessernamen')
-            val_list = []
-            for i, val in enumerate(df_gew[feld_gew_name]):
-                if check_wert_fehlend(val) == 0:
-                    pass
+                """hier noch den layer einbauen"""
+                feedback.setProgressText('Primärschlüssel fehlt; Attributtest wird übersprungen')
+            else:
+                if key == 'gewaesser':
+                    list_primary_key_empty = []
+                    prim_key_dict = {}
+                    for feature in layer.getFeatures():
+                        ft_key = feature.attribute(ereign_gew_id_field)
+                        if ft_key in emptystrdef:  # fehlender Primaerschluessel?
+                            list_primary_key_empty.append(feature.id())
+                        else:
+                            # mehrfache Primaerschluessel
+                            if ft_key in prim_key_dict.keys():
+                                prim_key_dict[ft_key].append(feature.id())
+                            else:
+                                prim_key_dict[ft_key] = [feature.id()]
+                    list_primary_key_duplicat = [lst for lst in prim_key_dict.values() if len(lst) > 1]
+                    report_dict[key]['attribute'] = {
+                        'missing_fields': missing_fields,
+                        'primary_key_empty': list_primary_key_empty,
+                        'primary_key_duplicat': list_primary_key_duplicat
+                    }
                 else:
-                    val_list = val_list + [df_gew.loc[i, 'id']]
-                feedback.setProgress(int(i * total_gew_steps))
-            report_dict['Test_VAL_ID_MISSING'] = {
-                'Typ': 'Attribut',
-                'Spalte': feld_gew_name,
-                'Report': oswDataFeedback.VAL_MISSING,
-                'Objekte': val_list
-            }
-            del df_gew
+                    list_gew_key_empty = []
+                    list_gew_key_invalid = []
+                    gew_layer = params['layer_dict']['gewaesser']['layer']
+                    if ereign_gew_id_field in report_dict['gewaesser']['attribute']['missing_fields']:
+                        # Uebereinstimmtung kann nicht geprueft werden, weil der Primaerschluessel beim Gewaesser fehlt
+                        report_dict[key]['attribute'] = {
+                            'missing_fields': missing_fields
+                        }
+                    else:
+                        list_gew_keys = [gew_ft.attribute(ereign_gew_id_field) for gew_ft in gew_layer.getFeatures()]
+                        for feature in layer.getFeatures():
+                            ft_key = feature.attribute(ereign_gew_id_field)
+                            if ft_key in emptystrdef:  # fehlender Gewaesserschluessel?
+                                list_gew_key_empty.append(feature.id())
+                            else:
+                                if not ft_key in list_gew_keys:
+                                    list_gew_key_invalid.append(feature.id())
+                        report_dict[key]['attribute'] = {
+                            'missing_fields': missing_fields,
+                            'gew_key_empty': list_gew_key_empty,
+                            'gew_key_invalid': list_gew_key_invalid
+                        }
 
 
-        # Pruefroutinen fuer Geometrien
-        feedback.setProgressText('Prüfe auf Geometriefehler:')
-        datagen = (
-            [
-                ft.id(),
-                ft.geometry()
-            ] for ft in layer_gew.getFeatures()
-        )
-        df_gew = pd.DataFrame.from_records(
-            data=datagen,
-            columns=[
-                'id',
-                'geometrie'
-            ]
-        )
-        del datagen
+            # Geometrien
+            layer_steps = params['layer_dict'][key]['steps']
+            list_geom_is_empty = []
+            list_geom_is_multi = []
+            list_geom_sefintersect = []
+            for i, feature in enumerate(layer.getFeatures()):
+                """Diese pruefungsroutinen ggf als Funktion, um tests zu schreiben"""
+                geom = feature.geometry()
+                # Leer?
+                geom_is_empty = geom.isEmpty()
+                # Multi?
+                if geom_is_empty:
+                    list_geom_is_empty.append(feature.id())
+                else:
+                    if geom.isMultipart():
+                        polygeom = geom.asMultiPolyline() 
+                    else:
+                        polygeom = [f for f in geom.parts()]
+                    if len(polygeom) > 1:
+                        list_geom_is_multi.append(feature.id())
+                # Selbstueberschneidungen
+                if not geom.isSimple() and not geom_is_empty:
+                    list_geom_sefintersect.append(feature.id())
+                feedback.setProgress(i+1*layer_steps)
+                report_dict[key]['geometrien'] = {
+                    'geom_is_empty': list_geom_is_empty,
+                    'geom_is_multi': list_geom_is_multi,
+                    'geom_sefintersect': list_geom_sefintersect
+                }
 
-        # leere Geometrien
-        feedback.setProgressText('- leere Geometrien')
-        val_list = []
-        for i, val in enumerate(df_gew['geometrie']):
-            if check_geometrie_leer(val) == 0:
-                pass
+            """
+            # Duplikate
+            if key == 'gewaesser':
+                # Konnektivitaet
+                for i, feature in enumerate(layer.getFeatures()):
+                    geom = feature.geometry()
+                    check_geometrie_wasserscheide_senke(
+                        geom,
+                        feature.id(),
+                        senke=False,
+                        **params
+                    )
+               
             else:
-                val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_EMPTY'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_EMPTY,
-            'Objekte': val_list
-        }
-
-        # Multigeometrien
-        feedback.setProgressText('- Multigeometrien')
-        val_list = []
-        for i, val in enumerate(df_gew['geometrie']):
-            if check_geometrie_multi(val) == 0:
-                pass
-            else:
-                val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_MULTI'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_MULTI,
-            'Objekte': val_list
-        }
-
-
-        # Selbstueberschneidungen
-        feedback.setProgressText('- Selbstüberschneidungen')
-        val_list = []
-        for i, val in enumerate(df_gew['geometrie']):
-            if check_geometrie_selbstueberschneidung(val) == 0:
-                pass
-            else:
-                val_list = val_list + [df_gew.loc[i, 'id']]
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_SELFINTERSECT'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_SELFINTERSECT,
-            'Objekte': val_list
-        }
-
-        # Ueberschneidung mit anderen Geometrien
-        feedback.setProgressText('- Ueberschneidung mit anderen Geometrien')
-        val_list = []
-        for i, geom in enumerate(df_gew['geometrie']):
-            check = check_geometrie_ueberschneidung_mit_anderen(
-                geom,
-                df_gew.loc[i, 'id'],
-                df_gew
-            ) 
-            if check == 0:
-                pass
-            else:
-                if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
-                    val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_INTERSECT'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_INTERSECT,
-            'Objekte': val_list
-        }
-
-        # Doppelte Geometrien
-        feedback.setProgressText('- Doppelte Geometrien')
-        val_list = []
-        for i, geom in enumerate(df_gew['geometrie']):
-            check = check_geometrie_duplikat(
-                geom,
-                i,
-                df_gew['geometrie'],
-                with_id=True,
-                df_gew=df_gew
-            ) 
-            if check == 0:
-                pass
-            else:
-                if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
-                    val_list = val_list + [check[1]]
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_DUPLICAT'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_DUPLICAT,
-            'Objekte': val_list
-        }
-
+                if key in ['rohrleitungen', 'durchlaesse']:  # Linienereignisse (rl und dl)
+                    pass
+                    #Linie auf Gewaesserlinie
+                else:
+                    pass
+                    # Punkt auf Gewaesserlinie
+                    if key == 'schaechte':
+                        pass
+                        # ggf. Lage auf RL prüfen
+        """
+        # run test
+        main_check('gewaesser', report_dict, params)
+        main_check('rohrleitungen', report_dict, params)
+        print(report_dict)
+        """
         # Konnektivitaet
         feedback.setProgressText('- Konnektivität')
         feedback.setProgressText('> Wasserscheiden')

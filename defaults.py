@@ -22,7 +22,7 @@ pflichtfelder = {
     'schaechte':['obj_nr_gu', 'name', 'gu_cd', 'scha'],
 }
 # Schluessel zur Identifikation des Gewaessers bei Ereignissen
-ereign_gew_id_feld = ['gu_cd', 'ba_cd']
+list_ereign_gew_id_fields = ['gu_cd', 'ba_cd']
 
 # zu pruefenden Mindestlaenge fuer Gewaesser
 minimallaenge_gew = 0.5
