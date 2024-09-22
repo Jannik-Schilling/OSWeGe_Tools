@@ -51,7 +51,8 @@ from .defaults import (
     oswScriptType
 )
 from .pruefungsroutinen import (
-    check_geometrie_wasserscheide_senke
+    check_geometrie_wasserscheide_senke,
+    check_vtx_on_line
 )
 from .meldungen import fehlermeldungen_generieren
 
@@ -237,7 +238,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         'primary_key_empty': list_primary_key_empty,
                         'primary_key_duplicat': list_primary_key_duplicat
                     }
-                else:
+                else:  # alle Ereignisse
                     list_gew_key_empty = []
                     list_gew_key_invalid = []
                     gew_layer = params['layer_dict']['gewaesser']['layer']
@@ -292,23 +293,74 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     'geom_sefintersect': list_geom_sefintersect
                 }
 
-            """
-            # Duplikate
+            feedback.setProgressText('Duplikate und Überschneidungen prüfen')
+            list_geom_duplicate = []
+            list_geom_crossings = []
+            visited_groups_crossings = set()
+            visited_groups_equal = set()
+            spatial_index = QgsSpatialIndex(layer.getFeatures())
+            for feature in layer.getFeatures():
+                feature_id = feature.id()
+                if feature_id in list_geom_is_empty:
+                    continue
+                if feature_id in list_geom_is_multi:  # das vielleicht rauswerfen
+                    continue
+                geom = feature.geometry()
+                intersecting_ids = spatial_index.intersects(geom.boundingBox())
+                for fid in intersecting_ids:
+                    if fid == feature_id:
+                        continue
+                    group_i = tuple(sorted([feature_id, fid]))
+                    other_feature = layer.getFeature(fid)
+                    other_geom = other_feature.geometry()
+                    if geom.equals(other_geom):
+                        if group_i in visited_groups_equal:
+                            pass
+                        else:
+                            list_geom_duplicate.append(group_i)
+                            visited_groups_equal.add(group_i)
+                    if geom.crosses(other_geom):
+                        if group_i in visited_groups_crossings:
+                            pass
+                        else:
+                            list_geom_crossings.append(group_i)
+                            visited_groups_crossings.add(group_i)
+            report_dict[key]['geometrien']['geom_crossings'] = list_geom_crossings
+            report_dict[key]['geometrien']['geom_duplicate'] = list_geom_duplicate
+
             if key == 'gewaesser':
-                # Konnektivitaet
-                for i, feature in enumerate(layer.getFeatures()):
-                    geom = feature.geometry()
-                    check_geometrie_wasserscheide_senke(
-                        geom,
-                        feature.id(),
-                        senke=False,
-                        **params
-                    )
-               
-            else:
+                pass
+                # wasserscheiden, senken
+            else:  # Ereignisse
+                gew_layer = params['layer_dict']['gewaesser']['layer']
+                spatial_index_gew = QgsSpatialIndex(gew_layer.getFeatures())
                 if key in ['rohrleitungen', 'durchlaesse']:  # Linienereignisse (rl und dl)
-                    pass
-                    #Linie auf Gewaesserlinie
+                    # gewaesser finden
+                    for feature in layer.getFeatures():
+                        feature_id = feature.id()
+                        if feature_id in list_geom_is_empty:
+                            pass
+                        elif feature_id in list_geom_is_multi: 
+                            pass
+                        else:
+                            geom = feature.geometry()
+                            intersecting_ids = spatial_index_gew.intersects(geom.boundingBox())
+                            '''
+                            ggf. gew-duplikate rauswerfen
+                            hier lieber ein request, wie vorher
+                            '''
+                            
+                            if len(intersecting_ids)==1:
+                                gew_ft = gew_layer.getFeature(intersecting_ids[0])
+                            else:
+                                """was, wenn da meherere in der Nähe sind?"""
+                                gew_ft = gew_layer.getFeature(intersecting_ids[-1])
+                            #Linie auf Gewaesserlinie
+                            print(gew_ft['ba_cd'])
+                            list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
+                            check_vtx_on_line(list_vtx_geom, gew_ft.geometry())
+
+        """
                 else:
                     pass
                     # Punkt auf Gewaesserlinie
@@ -317,66 +369,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         # ggf. Lage auf RL prüfen
         """
         # run test
-        main_check('gewaesser', report_dict, params)
-        main_check('rohrleitungen', report_dict, params)
-        print(report_dict)
+        for key in params['layer_dict'].keys():
+            if key in report_dict.keys():
+                feedback.setProgressText('layer: '+key)
+                main_check(key, report_dict, params)
+        #print(report_dict)
         """
-        # Konnektivitaet
-        feedback.setProgressText('- Konnektivität')
-        feedback.setProgressText('> Wasserscheiden')
-        val_list = []
-        for i, geom in enumerate(df_gew['geometrie']):
-            check = check_geometrie_wasserscheide_senke(
-                geom,
-                df_gew.loc[i,'id'],
-                senke=False,
-                **params
-            )
-            if check == 0:
-                pass
-            else:
-                dupl = False
-                check[1].sort()
-                if "Test_GEOM_DUPLICAT" in report_dict.keys():
-                    if check[1] in report_dict["Test_GEOM_DUPLICAT"]['Objekte']:
-                        dupl = True
-                if not dupl:
-                    if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
-                        val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_WASSERSCHEIDE'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_WASSERSCHEIDE,
-            'Objekte': val_list
-        }
-
-        feedback.setProgressText('> Senken')
-        val_list = []
-        for i, geom in enumerate(df_gew['geometrie']):
-            check = check_geometrie_wasserscheide_senke(
-                geom,
-                df_gew.loc[i,'id'],
-                senke=True,
-                **params
-            ) 
-            if check == 0:
-                pass
-            else:
-                dupl = False
-                check[1].sort()
-                if "Test_GEOM_DUPLICAT" in report_dict.keys():
-                    if check[1] in report_dict["Test_GEOM_DUPLICAT"]['Objekte']:
-                        dupl = True
-                if not dupl:
-                    if not any([all(fid in lst for fid in check[1]) for lst in val_list]):
-                        val_list = val_list + [check[1]] 
-            feedback.setProgress(int(i * total_gew_steps))
-        report_dict['Test_GEOM_SENKE'] = {
-            'Typ': 'Geometrie',
-            'Report': oswDataFeedback.GEOM_SENKE,
-            'Objekte': val_list
-        }
-
+        
         # Geometrieprüfungen hier nur fuer Ereignisse
         layer_typ = ''
         if layer_typ == 'Ereignis':

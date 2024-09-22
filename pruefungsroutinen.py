@@ -15,36 +15,45 @@ from qgis.gui import (
 import pandas as pd
 
 oswDataFeedback = None
-
-
-def check_geometrie_duplikat(
-    geom,
-    i,
-    geomlist,
-    with_id = False,
-    df_gew = None,
-):
-    '''
+def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
+    """
+    Prüft, ob der vtx maximal die Toleranz x von einer zweiten Geometrie entferne ist
+    :param QgsGeometry vtx_geom
     :param QgsGeometry geom
-    :param int fid
-    :param list geomlist
-    '''
-    lst = [j for j, g in enumerate(geomlist) if geom.equals(g)]
-    if i in lst:
-        lst.remove(i)
-    if len(lst) > 0:
-        if with_id:
-            if not isinstance(df_gew, pd.DataFrame):
-                raise TypeError("NoneType!")
-            else:
-                fid = df_gew.loc[i, 'id']
-                dupl_fids = df_gew.loc[lst, 'id'].tolist()
-                return 1, [fid]+dupl_fids
-        else:
-            return 1
-    else:
-        return 0
+    :return: bool
+    """
+    return geom2.distance(vtx_geom) <= tolerance
 
+def check_vtx_on_line(list_vtx_geom, gew_i_geom):
+    """
+    :param list vtx_geom_list: list of QgsGeometry
+    :param QgsGeometry gew_i_geom
+    """
+    list_point_on_line = []
+    list_gew_vtx_id = []
+    list_gew_stat = []
+    for vtx in list_vtx_geom:
+        # naechster Punkt auf dem Gewässer, als Point XY
+        nearest_gew_point = gew_i_geom.nearestPoint(vtx)
+        nearest_gew_xy = nearest_gew_point.asPoint()
+        # Distanz zur Linie
+        list_point_on_line.append(check_vtx_distance(vtx, gew_i_geom))
+        # naechster Stuetzpunkt danach
+        result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
+        list_gew_vtx_id.append(result_tuple[2])
+        if gew_i_geom.isMultipart():
+            gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
+            first_segment = gew_i_geom_polyline[0][:result_tuple[2]]+[result_tuple[1]]
+        else:
+            gew_i_geom_polyline = gew_i_geom.asPolyline()
+            first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
+        first_segment = [QgsPoint(p) for p in first_segment]
+        first_segment_geom = QgsGeometry.fromPolyline(first_segment)
+        stationierung = round(first_segment_geom.length(),2)
+        list_gew_stat.append(stationierung)
+    print(list_point_on_line)
+    print(list_gew_vtx_id)
+    print(list_gew_stat)
 
 def check_geometrie_konnektivitaet(
     pt_geom,
