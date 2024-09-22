@@ -358,7 +358,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             #Linie auf Gewaesserlinie
                             print(gew_ft['ba_cd'])
                             list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-                            check_vtx_on_line(list_vtx_geom, gew_ft.geometry())
+                            print(check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer))
 
         """
                 else:

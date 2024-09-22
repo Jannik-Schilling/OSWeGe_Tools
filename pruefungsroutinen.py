@@ -4,13 +4,16 @@ from qgis.core import (
     Qgis,
     QgsPoint,
     QgsGeometry,
-    QgsRectangle
+    QgsRectangle,
+    QgsProcessingFeatureSourceDefinition,
+    QgsFeatureRequest
 )
 
 from qgis.gui import (
     QgsMessageBar,
     QgisInterface
 )
+from qgis import processing
 
 import pandas as pd
 
@@ -24,23 +27,22 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     """
     return geom2.distance(vtx_geom) <= tolerance
 
-def check_vtx_on_line(list_vtx_geom, gew_i_geom):
+def check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer):
     """
     :param list vtx_geom_list: list of QgsGeometry
-    :param QgsGeometry gew_i_geom
+    :param QgsFeature gew_ft
     """
-    list_point_on_line = []
-    list_gew_vtx_id = []
+    gew_i_geom = gew_ft.geometry()
     list_gew_stat = []
     for vtx in list_vtx_geom:
         # naechster Punkt auf dem Gewässer, als Point XY
         nearest_gew_point = gew_i_geom.nearestPoint(vtx)
         nearest_gew_xy = nearest_gew_point.asPoint()
         # Distanz zur Linie
-        list_point_on_line.append(check_vtx_distance(vtx, gew_i_geom))
+        
         # naechster Stuetzpunkt danach
         result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
-        list_gew_vtx_id.append(result_tuple[2])
+        # Linie bis zum Punkt -> Stationierung
         if gew_i_geom.isMultipart():
             gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
             first_segment = gew_i_geom_polyline[0][:result_tuple[2]]+[result_tuple[1]]
@@ -49,11 +51,40 @@ def check_vtx_on_line(list_vtx_geom, gew_i_geom):
             first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
         first_segment = [QgsPoint(p) for p in first_segment]
         first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-        stationierung = round(first_segment_geom.length(),2)
+        stationierung = first_segment_geom.length()
         list_gew_stat.append(stationierung)
-    print(list_point_on_line)
-    print(list_gew_vtx_id)
-    print(list_gew_stat)
+    # get line part
+    gew_layer.selectByIds([gew_ft.id()])
+    sub_line_layer = processing.run(
+        "native:linesubstring",
+            {
+                'INPUT': QgsProcessingFeatureSourceDefinition(
+                    gew_layer.id(),
+                    selectedFeaturesOnly=True,
+                    featureLimit=-1,
+                    geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
+                 ),
+                'START_DISTANCE': list_gew_stat[0],
+                'END_DISTANCE': list_gew_stat[-1],
+                'OUTPUT':'memory:'
+            }
+        )['OUTPUT']
+    print(sub_line_layer)
+    sub_line = [ft for ft in sub_line_layer.getFeatures()][0]
+    gew_layer.selectByIds([])  # reset Selection
+    list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.geometry().vertices()]
+    if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
+        return (1, 'zu viele Stp')
+    if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
+        return (2, 'zu wenig Stp')
+    if len(list_vtx_geom) == len(list_sub_line_vtx_geom):
+        list_point_on_line = []
+        for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
+            list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
+        if not all(list_point_on_line):
+            return (3, 'Abweichung')
+        else:
+            return (0, 'ok')
 
 def check_geometrie_konnektivitaet(
     pt_geom,
