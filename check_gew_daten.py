@@ -147,7 +147,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             },
             'feedback': feedback,
             'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # gu_cd, ba_cd
-            'emptystrdef': [NULL, ''],
+            'emptystrdef': [NULL, ''],  # mögliche "Leer"-Definitionen für Zeichketten
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
@@ -224,10 +224,11 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     prim_key_dict = {}
                     for feature in layer.getFeatures():
                         ft_key = feature.attribute(ereign_gew_id_field)
-                        if ft_key in emptystrdef:  # fehlender Primaerschluessel?
+                        if ft_key in emptystrdef:
+                            # fehlender Primaerschluessel
                             list_primary_key_empty.append(feature.id())
                         else:
-                            # mehrfache Primaerschluessel
+                            # mehrfache Primaerschluessel ? -> Liste an eindeutigen keys
                             if ft_key in prim_key_dict.keys():
                                 prim_key_dict[ft_key].append(feature.id())
                             else:
@@ -238,7 +239,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         'primary_key_empty': list_primary_key_empty,
                         'primary_key_duplicat': list_primary_key_duplicat
                     }
-                else:  # alle Ereignisse
+                else:  # Attributtest für Ereignisse
                     list_gew_key_empty = []
                     list_gew_key_invalid = []
                     gew_layer = params['layer_dict']['gewaesser']['layer']
@@ -251,10 +252,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         list_gew_keys = [gew_ft.attribute(ereign_gew_id_field) for gew_ft in gew_layer.getFeatures()]
                         for feature in layer.getFeatures():
                             ft_key = feature.attribute(ereign_gew_id_field)
-                            if ft_key in emptystrdef:  # fehlender Gewaesserschluessel?
+                            if ft_key in emptystrdef:
+                                # fehlender Gewaesserschluessel
                                 list_gew_key_empty.append(feature.id())
                             else:
                                 if not ft_key in list_gew_keys:
+                                    # Der angegebene Gewaesserschluessel(=Gewaessername) ist nicht im Gewaesserlayer vergeben
                                     list_gew_key_invalid.append(feature.id())
                         report_dict[key]['attribute'] = {
                             'missing_fields': missing_fields,
@@ -344,146 +347,49 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         elif feature_id in list_geom_is_multi: 
                             pass
                         else:
+                            #Linie auf Gewaesserlinie
                             geom = feature.geometry()
+                            list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
                             intersecting_ids = spatial_index_gew.intersects(geom.boundingBox())
-                            '''
-                            ggf. gew-duplikate rauswerfen
-                            hier lieber ein request, wie vorher
-                            '''
-                            
                             if len(intersecting_ids)==1:
                                 gew_ft = gew_layer.getFeature(intersecting_ids[0])
+                                check_vtx_on_line_num, check_vtx_on_line_txt = check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer)
+                                """passt der Gewassername?"""
+                            elif len(intersecting_ids)==0:
+                                print('0; ft_id='+str(feature.id()))
+                                check_vtx_on_line_num = 4
+                                check_vtx_on_line_txt = 'Kein Gewässer in der Nähe'
                             else:
-                                """was, wenn da meherere in der Nähe sind?"""
-                                gew_ft = gew_layer.getFeature(intersecting_ids[-1])
-                            #Linie auf Gewaesserlinie
-                            list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-                            list_geom_ereign_auf_gew.append(check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer))
-                            report_dict[key]['geometrien']['geom_ereign_auf_gew'] = list_geom_ereign_auf_gew
-
-        """
-                else:
+                                # mehrere Gewaesser gefunden
+                                list_sum = []
+                                for gew_id in intersecting_ids:
+                                    # identifiziere das Gewaesser mit dem geringsten Abstand der Stützpunkte in Summe
+                                    gew_ft_candidate = gew_layer.getFeature(gew_id)
+                                    list_sum.append([gew_ft_candidate.geometry().distance(vtx) for vtx in list_vtx_geom])
+                                    position_in_list = list_sum.index(min(list_sum))
+                                gew_ft = gew_layer.getFeature(intersecting_ids[position_in_list])
+                                check_vtx_on_line_num, check_vtx_on_line_txt = check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer)
+                                """passt der Gewassername?"""
+                            if not check_vtx_on_line_num == 0:
+                                list_geom_ereign_auf_gew.append({feature_id: check_vtx_on_line_txt})
+                    report_dict[key]['geometrien']['geom_ereign_auf_gew'] = list_geom_ereign_auf_gew
+                if key in ['schaechte', 'wehre']:
                     pass
-                    # Punkt auf Gewaesserlinie
-                    if key == 'schaechte':
-                        pass
-                        # ggf. Lage auf RL prüfen
-        """
+                    """
+                    - liegt der schacht auf einem anfangs oder endpunkt von rl /dl (oder überhaupt darauf)
+                    - passt das Gewaesser?                    
+                    """
         # run test
         for key in params['layer_dict'].keys():
             if key in report_dict.keys():
                 feedback.setProgressText('layer: '+key)
                 main_check(key, report_dict, params)
-        #print(report_dict)
         
         import json
         import json
         with open(reportdatei, 'w', encoding='utf-8') as f:
             json.dump(report_dict, f, ensure_ascii=False, indent=4)
 
-        """
-        # Geometrieprüfungen hier nur fuer Ereignisse
-        layer_typ = ''
-        if layer_typ == 'Ereignis':
-            # Übereinstimmung mit Gewässergeometrie
-            feedback.setProgressText('- Übereinstimmung mit Gewässergeometrie')
-            
-            feedback.setProgressText('> Gewässername prüfen')
-            ereign_joined_layer = processing.run(
-                "native:joinbynearest",
-                {
-                    'INPUT': layer_ereign,
-                    'INPUT_2': layer_gew,
-                    'FIELDS_TO_COPY': ['ba_cd'],
-                    'DISCARD_NONMATCHING': False,
-                    'PREFIX':'gew_', 
-                    'NEIGHBORS':1, 
-                    'MAX_DISTANCE': None,
-                    'OUTPUT':'memory:'
-                },
-                context=context,
-                feedback=feedback
-            )['OUTPUT']
-            for i, ft in enumerate(ereign_joined_layer.getFeatures()):
-                if ft['ba_cd'] == ft['gew_ba_cd']:
-                    pass
-                else:
-                    print('Falscher Gewässername' + str(i))
-
-            if layer_ereign.geometryType() == 1:
-                feedback.setProgressText('> Geometrieübereinstimmung prüfen')
-                val_list = []
-                for i, ft in enumerate(ereign_joined_layer.getFeatures()):
-                    geom_i = ft.geometry()
-                    # check if null or multi
-                    req_expression = QgsExpression("\"ba_cd\" = \'"+str(ft['gew_ba_cd'])+"\'")
-                    gew_i = [f for f in layer_gew.getFeatures(QgsFeatureRequest(req_expression))][0]
-                    gew_i_geom = gew_i.geometry()
-                    vtx_df = pd.DataFrame({
-                        'ereign_sp': [QgsGeometry.fromPoint(vtx) for vtx in geom_i.vertices()],
-                        'naechster_gew_sp_idx': np.nan,
-                        'distanz_sp': np.nan,
-                        'distanz_gew': np.nan,
-                    })
-                    
-                    vtx_df_maxIndex = vtx_df.index[-1]
-                    ereign_vtx_start_geom = vtx_df['ereign_sp'][0]
-                    ereign_vtx_ende_geom = vtx_df['ereign_sp'][vtx_df_maxIndex]
-                    ereign_vtc_mittel_geom = vtx_df['ereign_sp'][1:vtx_df_maxIndex]
-
-                    # naechster Punkt auf dem Gewässer
-                    nearest_gew_point_start = gew_i_geom.nearestPoint(ereign_vtx_start_geom)
-                    nearest_gew_xy_start = nearest_gew_point_start.asPoint()
-                    nearest_gew_point_ende = gew_i_geom.nearestPoint(ereign_vtx_ende_geom)
-                    nearest_gew_xy_ende = nearest_gew_point_ende.asPoint()
-
-                    # naechster Stuetzpunkt danach
-                    stp_start = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_start)[2]
-                    stp_stop = gew_i_geom.closestSegmentWithContext(nearest_gew_xy_ende)[2]
-                    gew_idx_mittlere_vtc = list(range(stp_start, stp_stop))  # indices der mittleren Stuetzpunkte
-                    
-                    # Distanz zu den Stuetzpunkten
-                    for ereign_vtx_idx in vtx_df.index:
-                        ereign_vtx_geom = vtx_df['ereign_sp'][ereign_vtx_idx]
-                        ereign_vtx_XY = ereign_vtx_geom.asPoint()  # XY-Geometrie des Ereignisstützpunkts
-                        if ereign_vtx_idx == 0:
-                            pass
-                        elif ereign_vtx_idx == vtx_df_maxIndex:
-                            pass
-                        else:
-                            gew_vtx_dist, gew_vtx_idx = gew_i_geom.closestVertexWithContext(ereign_vtx_XY)
-                            vtx_df.loc[ereign_vtx_idx, 'distanz_sp'] = gew_vtx_dist
-                            vtx_df.loc[ereign_vtx_idx, 'naechster_gew_sp_idx'] = gew_vtx_idx
-                        vtx_df.loc[ereign_vtx_idx, 'distanz_gew'] = gew_i_geom.closestSegmentWithContext(ereign_vtx_XY)[0]
-                    if all(x == 0 for x in vtx_df['distanz_gew']):
-                        pass
-                    else:
-                        val_list = val_list + [ft.id()]
-                    del vtx_df
-                    feedback.setProgress(int(i * total_steps))
-                report_dict['Test_GEOM_NOT_ON_GEWLINE'] = {
-                    'Typ': 'Geometrie',
-                    'Report': oswDataFeedback.GEOM_NOT_ON_GEWLINE,
-                    'Objekte': val_list
-                }
-            else: # Punkte
-                feedback.setProgressText('> Lage der Punktgeometrie prüfen')
-                val_list = []
-
-
-        # Bericht zusammenstellen
-        with open(reportdatei, 'w') as f:
-            f.write(
-                '**************************************'
-                + '\nÜberprüfung des (Basis-)Gewässerlayers'
-                + '\n\nLayer: ' + str(layer_gew)
-                + '\n**************************************\n\n'
-            )
-            for val in report_dict.values():
-                f.write(fehlermeldungen_generieren(val))
-
-        feedback.pushInfo('Report gespeichert in ' + str(reportdatei)+ '\n')
-        """
         return {}
 
     def name(self):

@@ -69,7 +69,6 @@ def check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer):
                 'OUTPUT':'memory:'
             }
         )['OUTPUT']
-    print(sub_line_layer)
     sub_line = [ft for ft in sub_line_layer.getFeatures()][0]
     gew_layer.selectByIds([])  # reset Selection
     list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.geometry().vertices()]
