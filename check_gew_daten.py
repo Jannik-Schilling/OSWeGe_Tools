@@ -121,7 +121,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             QgsProcessingParameterFileDestination(
                 self.REPORT,
                 self.tr('Reportdatei'),
-                'Textdatei (*.txt)',
+                'Json File (*.json)'                #'Textdatei (*.txt)',
             )
         )
 
@@ -332,6 +332,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 pass
                 # wasserscheiden, senken
             else:  # Ereignisse
+                list_geom_ereign_auf_gew = []
                 gew_layer = params['layer_dict']['gewaesser']['layer']
                 spatial_index_gew = QgsSpatialIndex(gew_layer.getFeatures())
                 if key in ['rohrleitungen', 'durchlaesse']:  # Linienereignisse (rl und dl)
@@ -356,9 +357,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 """was, wenn da meherere in der Nähe sind?"""
                                 gew_ft = gew_layer.getFeature(intersecting_ids[-1])
                             #Linie auf Gewaesserlinie
-                            print(gew_ft['ba_cd'])
                             list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-                            print(check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer))
+                            list_geom_ereign_auf_gew.append(check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer))
+                            report_dict[key]['geometrien']['geom_ereign_auf_gew'] = list_geom_ereign_auf_gew
 
         """
                 else:
@@ -374,8 +375,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 feedback.setProgressText('layer: '+key)
                 main_check(key, report_dict, params)
         #print(report_dict)
-        """
         
+        import json
+        import json
+        with open(reportdatei, 'w', encoding='utf-8') as f:
+            json.dump(report_dict, f, ensure_ascii=False, indent=4)
+
+        """
         # Geometrieprüfungen hier nur fuer Ereignisse
         layer_typ = ''
         if layer_typ == 'Ereignis':
