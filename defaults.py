@@ -33,13 +33,15 @@ findGew_tolerance_dist = 0.2
 # Suchraum fuer die Checks
 distanz_suchen = 0
 
-# Fehldermeldungen
-pluginPath = os.path.dirname(__file__)
-df_fehlermeldungen = pd.read_csv(
-    os.path.join(
-        pluginPath,
-        "tables/Meldungen.csv"
-    ),
-    encoding = 'windows-1252'
-)
-
+# Fehler beim Vergleich von Ereignisssen auf Gewässer
+dict_ereign_fehler = {
+    'Anzahl':{
+        0: 'korrekt',
+        1: 'zu viele Stützpunkte',
+        2: 'zu wenige Stützpunkte'
+    },
+    'Lage': {
+        0: 'korrekt',
+        1: 'Abweichung',
+    }
+}

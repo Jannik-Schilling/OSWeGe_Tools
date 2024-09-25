@@ -2,11 +2,12 @@ from qgis.core import (
     QgsProcessingFeedback,
     NULL,
     Qgis,
-    QgsPoint,
+    QgsFeatureRequest,
     QgsGeometry,
-    QgsRectangle,
+    QgsPoint,
     QgsProcessingFeatureSourceDefinition,
-    QgsFeatureRequest
+    QgsRectangle,
+    QgsSpatialIndex
 )
 
 from qgis.gui import (
@@ -17,29 +18,121 @@ from qgis import processing
 
 import pandas as pd
 
-oswDataFeedback = None
+
+def lst_replace(lst, dict_repl):
+    new_list = []
+    for elem in lst:
+        if (type(elem)==list) or (type(elem)==tuple):
+            sublist = lst_replace(elem, dict_repl)
+            new_list.append(sublist)
+        else:
+            if elem in dict_repl.keys():
+                new_list.append(dict_repl[elem])
+            else:
+                new_list.append(elem)
+    return (new_list)
+
+def get_line_to_check(geom, other_layer):
+    """
+    Ermittelt mithilfe einer Boundingbox ein Linienobjekt aus dem other_layer, auf dem geom liegen könnte
+    :param geom
+    :param other_layer
+    """
+    spatial_index_other = QgsSpatialIndex(other_layer.getFeatures())
+    if geom.type() == 0:  # Point
+        intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(0.2))
+        list_vtx_geom = [geom]
+    else:
+        intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
+        list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
+    if len(intersecting_ids)==0:
+        return
+    else:
+        # eines oder mehrere Gewaesser gefunden
+        list_sum = []
+        for gew_id in intersecting_ids:
+            # identifiziere das Gewaesser mit dem geringsten Abstand der Stützpunkte in Summe
+            gew_ft_candidate = other_layer.getFeature(gew_id)
+            list_sum.append(sum([gew_ft_candidate.geometry().distance(vtx) for vtx in list_vtx_geom]))
+        position_in_list = list_sum.index(min(list_sum))
+        line_feature = other_layer.getFeature(intersecting_ids[position_in_list])
+        return line_feature
+
+def check_duplicates_crossings(
+    layer,
+    feedback,
+    layer_steps,
+):
+    """
+    :param QgsVectorLayer layer,
+    :param QgsProcessingFeedbackfeedback,
+    :param float layer_steps,
+    :param str field_alternative_id: Feldname für eine andere id()
+    """
+    list_geom_duplicate = []
+    list_geom_crossings = []
+    visited_groups_crossings = set()
+    visited_groups_equal = set()
+    spatial_index = QgsSpatialIndex(layer.getFeatures())
+    for i, feature in enumerate(layer.getFeatures()):
+        feedback.setProgress(i+1*layer_steps)
+        geom = feature.geometry()
+        feature_id = feature.id()
+        if geom.isEmpty():
+            continue
+        if geom.type() == 0:  # Point
+            intersecting_ids = spatial_index.intersects(geom.boundingBox().buffered(0.2))
+        else:
+            intersecting_ids = spatial_index.intersects(geom.boundingBox())
+        for fid in intersecting_ids:
+            if fid == feature_id:
+                continue
+            group_i = tuple(sorted([feature_id, fid]))
+            other_feature = layer.getFeature(fid)
+            other_geom = other_feature.geometry()
+            if geom.equals(other_geom):
+                if group_i in visited_groups_equal:
+                    pass
+                else:
+                    list_geom_duplicate.append(group_i)
+                    visited_groups_equal.add(group_i)
+            if geom.crosses(other_geom):
+                if group_i in visited_groups_crossings:
+                    pass
+                else:
+                    list_geom_crossings.append(group_i)
+                    visited_groups_crossings.add(group_i)
+    return list_geom_crossings, list_geom_duplicate
+
+
 def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     """
     Prüft, ob der vtx maximal die Toleranz x von einer zweiten Geometrie entferne ist
     :param QgsGeometry vtx_geom
     :param QgsGeometry geom
+    :param float tolerance
     :return: bool
     """
     return geom2.distance(vtx_geom) <= tolerance
 
-def check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer):
+
+def check_geom_on_line(geom, gew_layer, with_stat=False):
     """
-    :param list vtx_geom_list: list of QgsGeometry
-    :param QgsFeature gew_ft
+    Prüft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
+    :param QgsGeometry (Line) geom
+    :param QgsVectorLayer (Line) gew_layer
+    :param bool with_stat: Rückgabe der Staionierung?; default: False
+    :return: dict
     """
-    gew_i_geom = gew_ft.geometry()
+    dict_vtx_bericht = {}  # Fehlermeldungen siehe defaults.dict_ereign_fehler
+    other_line_ft = get_line_to_check(geom, gew_layer)
+    gew_i_geom = other_line_ft.geometry()
     list_gew_stat = []
+    list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
     for vtx in list_vtx_geom:
         # naechster Punkt auf dem Gewässer, als Point XY
         nearest_gew_point = gew_i_geom.nearestPoint(vtx)
         nearest_gew_xy = nearest_gew_point.asPoint()
-        # Distanz zur Linie
-        
         # naechster Stuetzpunkt danach
         result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
         # Linie bis zum Punkt -> Stationierung
@@ -53,8 +146,11 @@ def check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer):
         first_segment_geom = QgsGeometry.fromPolyline(first_segment)
         stationierung = first_segment_geom.length()
         list_gew_stat.append(stationierung)
-    # get line part
-    gew_layer.selectByIds([gew_ft.id()])
+    if with_stat:
+        dict_vtx_bericht['gew_id'] = other_line_ft.id()
+        dict_vtx_bericht['vtx_stat'] = list_gew_stat
+    # Den Linienabschnitt zum Vergleich generieren
+    gew_layer.selectByIds([other_line_ft.id()])
     sub_line_layer = processing.run(
         "native:linesubstring",
             {
@@ -73,17 +169,19 @@ def check_vtx_on_line(list_vtx_geom, gew_ft, gew_layer):
     gew_layer.selectByIds([])  # reset Selection
     list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.geometry().vertices()]
     if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
-        return (1, 'zu viele Stp')
+        dict_vtx_bericht['Anzahl'] = 1
     if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
-        return (2, 'zu wenig Stp')
+        dict_vtx_bericht['Anzahl'] = 2
     if len(list_vtx_geom) == len(list_sub_line_vtx_geom):
+        dict_vtx_bericht['Anzahl'] = 0
         list_point_on_line = []
         for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
             list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
         if not all(list_point_on_line):
-            return (3, 'Abweichung')
+            dict_vtx_bericht['Lage'] = 1
         else:
-            return (0, 'ok')
+            dict_vtx_bericht['Lage'] = 0
+    return dict_vtx_bericht
 
 def check_geometrie_konnektivitaet(
     pt_geom,
