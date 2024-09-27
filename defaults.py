@@ -35,7 +35,7 @@ distanz_suchen = 0
 
 # Fehler beim Vergleich von Ereignisssen auf Gewässer
 dict_ereign_fehler = {
-    'Anzahl':{
+    'Anzahl': {
         0: 'korrekt',
         1: 'zu viele Stützpunkte',
         2: 'zu wenige Stützpunkte'
@@ -43,5 +43,11 @@ dict_ereign_fehler = {
     'Lage': {
         0: 'korrekt',
         1: 'Abweichung',
+    },
+    'Lage_rldl': {
+        0: 'korrekt',
+        1: 'Schacht auf offenem Gewaesser',
+        2: 'Rohrleitung oder Durchlass verschoben',
+        3: 'Schacht weder auf Gewaesser noch auf RL/DL'
     }
 }

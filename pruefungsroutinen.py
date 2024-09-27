@@ -19,32 +19,33 @@ from qgis import processing
 import pandas as pd
 
 
-def lst_replace(lst, dict_repl):
-    new_list = []
-    for elem in lst:
-        if (type(elem)==list) or (type(elem)==tuple):
-            sublist = lst_replace(elem, dict_repl)
-            new_list.append(sublist)
-        else:
-            if elem in dict_repl.keys():
-                new_list.append(dict_repl[elem])
-            else:
-                new_list.append(elem)
-    return (new_list)
-
-def get_line_to_check(geom, other_layer):
+def get_line_candidates_ids(geom, other_layer, tolerance=0.2):
     """
-    Ermittelt mithilfe einer Boundingbox ein Linienobjekt aus dem other_layer, auf dem geom liegen könnte
-    :param geom
+    Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
+    :param QgsGeometry geom
     :param other_layer
+    :param float tolerance: Suchraum bei Punkten: default 0.2
+    :return: list
     """
     spatial_index_other = QgsSpatialIndex(other_layer.getFeatures())
     if geom.type() == 0:  # Point
-        intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(0.2))
-        list_vtx_geom = [geom]
+        intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(tolerance))
     else:
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
+    return intersecting_ids
+
+def get_line_to_check(geom, other_layer):
+    """
+    Ermittelt mithilfe einer Boundingbox EIN Linienobjekt aus dem other_layer, auf dem geom liegen könnte
+    :param QgsGeometry geom
+    :param other_layer
+    :return: QgsFeature
+    """
+    if geom.type() == 0:  # Point
+        list_vtx_geom = [geom]
+    else:
         list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
+    intersecting_ids = get_line_candidates_ids(geom, other_layer)
     if len(intersecting_ids)==0:
         return
     else:
@@ -64,6 +65,7 @@ def check_duplicates_crossings(
     layer_steps,
 ):
     """
+    Ueberprueft ob es im Layer Geometrie-Duplikate oder Ueberschneidungen gibt
     :param QgsVectorLayer layer,
     :param QgsProcessingFeedbackfeedback,
     :param float layer_steps,
@@ -183,51 +185,17 @@ def check_geom_on_line(geom, gew_layer, with_stat=False):
             dict_vtx_bericht['Lage'] = 0
     return dict_vtx_bericht
 
-def check_geometrie_konnektivitaet(
-    pt_geom,
-    fid,
-    index_gew,
-    layer_gew,
-    distanz_suchen=0
-):
-    """
-    :param QgsGeometry (Point) geom
-    :param int fid: feature id im layer_gew
-    :param QgsSpatialIndex index_gew
-    :param QgsVectorLayer (line) layer_gew
-    :param int distanz_suchen
-    """
-    pt = pt_geom.asPoint()
-    rectangle = QgsRectangle(
-            pt.x() - distanz_suchen,
-            pt.y() - distanz_suchen,
-            pt.x() + distanz_suchen,
-            pt.y() + distanz_suchen
-        )
-    intersections = index_gew.intersects(rectangle)
-    if len(intersections) > 0:
-        if fid in intersections:
-            # selbst entfernen
-            intersections.remove(fid)
-        for line_id in intersections:
-            # nicht schneidende entfernen
-            line_geom = layer_gew.getFeature(line_id).geometry()
-            if not pt_geom.intersects(line_geom):
-                intersections.remove(line_id)
-    return intersections
 
 def check_geometrie_wasserscheide_senke(
     geom,
-    fid,
-    index_gew,
+    feature_id,
     layer_gew,
     senke=False,
     **kwargs
 ):
     '''
-    :param QgsGeomertry geom
-    :param int fid
-    :param QgsSpatialIndex index_gew
+    :param QgsGeometry geom
+    :param int feature_id
     :param QgsVectorLayer (line) layer_gew
     :param bool senke
     '''
@@ -235,35 +203,38 @@ def check_geometrie_wasserscheide_senke(
         vtx_num = 0
     else:
         vtx_num = -1
-    vtx = get_vtx(geom, vtx_num)
-    intersecting_lines = check_geometrie_konnektivitaet(
+    vtx = get_vtx(geom, vtx_num)  # QgsGeometry
+    intersecting_lines = get_line_candidates_ids(
         vtx,
-        fid,
-        index_gew,
         layer_gew
     )
+    if feature_id in intersecting_lines:
+        intersecting_lines.remove(feature_id)
     if len(intersecting_lines) == 0:
-        return 0 # Quelle oder Muendung
+        return None# Quelle oder Muendung (korrekt)
     else:
         check_dupl_list = []
         for line_id in intersecting_lines:
             inters_line_geom = layer_gew.getFeature(line_id).geometry()
             check_vtx = get_vtx(inters_line_geom, vtx_num)  # der zu pruefende Stuetzpunkt
-            check_dupl_list = check_dupl_list + [check_geometrie_duplikat(
-                vtx,
-                0,
-                [vtx, check_vtx]
-            )]
-        if all([x == 1 for x in check_dupl_list]):
-            if senke:
-                return 1, [fid]+intersecting_lines
+            if vtx.equals(check_vtx):
+                check_dupl_list.append(1)
             else:
-                return 2, [fid]+intersecting_lines
+                check_dupl_list.append(0)
+        if all([x == 1 for x in check_dupl_list]):
+            return tuple(sorted([feature_id]+check_dupl_list))
         else:
-            return 0
+            return None
+
 
 
 def get_vtx(line_geom, vtx_index):
+    """
+    Gibt den Stuetzpunkt einer Liniengeometrie mit dem index vtx_index als QgsGeometry zurück
+    :param QgsGeometry line_geom
+    :param int vtx_index
+    :return QgsGeometry
+    """
     if line_geom.isMultipart():
         pt = QgsPoint(line_geom.asMultiPolyline()[vtx_index][vtx_index])
     else: 
