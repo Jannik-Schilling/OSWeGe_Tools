@@ -152,24 +152,12 @@ def check_geom_on_line(geom, gew_layer, with_stat=False):
         dict_vtx_bericht['gew_id'] = other_line_ft.id()
         dict_vtx_bericht['vtx_stat'] = list_gew_stat
     # Den Linienabschnitt zum Vergleich generieren
-    gew_layer.selectByIds([other_line_ft.id()])
-    sub_line_layer = processing.run(
-        "native:linesubstring",
-            {
-                'INPUT': QgsProcessingFeatureSourceDefinition(
-                    gew_layer.id(),
-                    selectedFeaturesOnly=True,
-                    featureLimit=-1,
-                    geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
-                 ),
-                'START_DISTANCE': list_gew_stat[0],
-                'END_DISTANCE': list_gew_stat[-1],
-                'OUTPUT':'memory:'
-            }
-        )['OUTPUT']
-    sub_line = [ft for ft in sub_line_layer.getFeatures()][0]
-    gew_layer.selectByIds([])  # reset Selection
-    list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.geometry().vertices()]
+    for i, part in enumerate(gew_i_geom.parts()):
+        if i > 0:
+            pass
+        else:
+            sub_line = part.curveSubstring(list_gew_stat[0] , list_gew_stat[-1])
+    list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.vertices()]
     if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
         dict_vtx_bericht['Anzahl'] = 1
     if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
