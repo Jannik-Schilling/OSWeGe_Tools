@@ -24,10 +24,12 @@
 import os
 import sys
 import inspect
+import urllib.request
 
 from qgis.core import (
     QgsProcessingAlgorithm,
-    QgsApplication
+    QgsApplication,
+    Qgis
 )
 from qgis.PyQt.QtCore import (
     QSettings,
@@ -87,7 +89,55 @@ class oswege_tools_buttons:
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
+        
+        
+        # Check version
+        def get_metadata(file_path, lokal=True):
+            if lokal:
+                with open(file_path, 'r') as f:
+                    text = f.readlines()
+            else:
+                response = urllib.request.urlopen(path_meta_git)
+                text = response.read().decode('utf-8').split('\n')
+            has_repo = False
+            has_version = False
+            repo_line = ''
+            version_line = ''
+            for line in text:
+                if line.startswith('repository='):
+                    repo_line = line.split('=')[1].strip()
+                    has_repo = True
+                if line.startswith('version='):
+                    version_line = line.split('=')[1].strip()
+                    has_repo = True
+                if has_repo and has_version:
+                    break
+            return repo_line, version_line
 
+        path_meta_local = os.path.abspath(os.path.join(
+            os.path.dirname(__file__),
+            'metadata.txt'))
+        lokal_repo, lokal_version = get_metadata(path_meta_local)
+        
+        path_meta_git = "https://raw.githubusercontent.com/Jannik-Schilling/OSWeGe_Tools/refs/heads/main/metadata.txt"
+        git_repo, git_version = get_metadata(path_meta_git, lokal=False)
+        if git_version == lokal_version:
+            iface.messageBar().pushMessage("Info", "Das Plugin ist akutell", level=Qgis.Info, duration=8)
+        else:
+            iface.messageBar().pushMessage(
+                "Info",
+                (
+                    'Es gibt eine neue Version ('
+                    + str(lokal_version)
+                    + ' > '
+                    + str(git_version)
+                    + ') des Plugins \"oswege_tools\" auf GitHub, siehe '
+                    + str(lokal_repo)
+                ),
+                level=Qgis.Info,
+                duration=8
+            )
+        
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""
         self.provider = oswegeToolsProvider()
