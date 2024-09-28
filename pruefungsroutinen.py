@@ -178,8 +178,7 @@ def check_geometrie_wasserscheide_senke(
     geom,
     feature_id,
     layer_gew,
-    senke=False,
-    **kwargs
+    senke=False
 ):
     '''
     :param QgsGeometry geom
@@ -210,7 +209,7 @@ def check_geometrie_wasserscheide_senke(
             else:
                 check_dupl_list.append(0)
         if all([x == 1 for x in check_dupl_list]):
-            return tuple(sorted([feature_id]+check_dupl_list))
+            return tuple(sorted([feature_id]+intersecting_lines))
         else:
             return None
 

@@ -354,7 +354,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         wasserscheiden = check_geometrie_wasserscheide_senke(
                             geom,
                             feature_id,
-                            params['layer_dict']['gewaesser']['layer']
+                            layer
                         )
                         if wasserscheiden:
                             if not wasserscheiden in visited_features_wassersch:
@@ -363,12 +363,15 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         senken = check_geometrie_wasserscheide_senke(
                             geom,
                             feature_id,
-                            params['layer_dict']['gewaesser']['layer']
+                            layer,
+                            senke=True
                         )
                         if senken:
                             if not senken in visited_features_senken:
                                 list_geom_senken.append(senken)
                                 visited_features_senken.add(senken)
+                report_dict[key]['geometrien']['wasserscheiden'] = list_geom_wassersch
+                report_dict[key]['geometrien']['senken'] = list_geom_senken
 
             else:  # Ereignisse
                 feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
