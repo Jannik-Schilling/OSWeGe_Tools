@@ -120,7 +120,10 @@ class oswege_tools_buttons:
         lokal_repo, lokal_version = get_metadata(path_meta_local)
         
         path_meta_git = "https://raw.githubusercontent.com/Jannik-Schilling/OSWeGe_Tools/refs/heads/main/metadata.txt"
-        git_repo, git_version = get_metadata(path_meta_git, lokal=False)
+        try:
+            git_repo, git_version = get_metadata(path_meta_git, lokal=False)
+        except Exception:
+            git_version = lokal_version
         if git_version == lokal_version:
             iface.messageBar().pushMessage("Info", "Das Plugin ist akutell", level=Qgis.Info, duration=8)
         else:

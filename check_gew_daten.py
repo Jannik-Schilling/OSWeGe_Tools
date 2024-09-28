@@ -29,17 +29,12 @@ __copyright__ = '(C) 2024 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    QVariant
+    QCoreApplication
 )
 from qgis.core import (
     NULL,
-    QgsExpression,
-    QgsFeatureRequest,
-    QgsGeometry,
     QgsProcessing,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterField,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
     QgsWkbTypes
@@ -47,11 +42,7 @@ from qgis.core import (
 from qgis import processing
 
 from .defaults import (
-    distanz_suchen,
-    dict_ereign_fehler,
     list_ereign_gew_id_fields,
-    minimallaenge_gew,
-    oswScriptType,
     pflichtfelder,
 )
 from .pruefungsroutinen import (
@@ -354,7 +345,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         wasserscheiden = check_geometrie_wasserscheide_senke(
                             geom,
                             feature_id,
-                            params['layer_dict']['gewaesser']['layer']
+                            layer
                         )
                         if wasserscheiden:
                             if not wasserscheiden in visited_features_wassersch:
@@ -363,12 +354,15 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         senken = check_geometrie_wasserscheide_senke(
                             geom,
                             feature_id,
-                            params['layer_dict']['gewaesser']['layer']
+                            layer,
+                            senke=True
                         )
                         if senken:
                             if not senken in visited_features_senken:
                                 list_geom_senken.append(senken)
                                 visited_features_senken.add(senken)
+                report_dict[key]['geometrien']['wasserscheiden'] = list_geom_wassersch
+                report_dict[key]['geometrien']['senken'] = list_geom_senken
 
             else:  # Ereignisse
                 feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
@@ -463,7 +457,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             if key in report_dict.keys():
                 main_check(key, report_dict, params, feedback)
 
-        import json
+
         import json
         # dict_ereign_fehler
         with open(reportdatei, 'w', encoding='utf-8') as f:

@@ -30,8 +30,6 @@ minimallaenge_gew = 0.5
 # Suchraum fuer die Stationierungsfunktion
 findGew_tolerance_dist = 0.2
 
-# Suchraum fuer die Checks
-distanz_suchen = 0
 
 # Fehler beim Vergleich von Ereignisssen auf Gewässer
 dict_ereign_fehler = {
