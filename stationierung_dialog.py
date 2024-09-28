@@ -24,7 +24,7 @@
 
 import os
 import pandas as pd
-import copy
+
 
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
@@ -41,7 +41,6 @@ from qgis.core import (
     QgsWkbTypes
 ) 
 from qgis.gui import (
-    QgsMapCanvas,
     QgsMapTool,
     QgsMapToolEmitPoint,
     QgsSnapIndicator
@@ -50,8 +49,7 @@ from PyQt5.QtCore import (
     Qt
 )
 from PyQt5.QtWidgets import (
-    QDialogButtonBox,
-    QPushButton
+    QDialogButtonBox
 )
 from PyQt5.QtGui import QPalette, QColor
 

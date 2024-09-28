@@ -77,3 +77,10 @@ def replace_lst_ids(lst, dict_repl):
             else:
                 new_list.append(elem)
     return new_list
+
+def write_report_text():
+    pass
+
+
+def write_report_layer():
+    pass

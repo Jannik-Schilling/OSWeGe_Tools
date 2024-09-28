@@ -1,22 +1,8 @@
 from qgis.core import (
-    QgsProcessingFeedback,
-    NULL,
-    Qgis,
-    QgsFeatureRequest,
     QgsGeometry,
     QgsPoint,
-    QgsProcessingFeatureSourceDefinition,
-    QgsRectangle,
     QgsSpatialIndex
 )
-
-from qgis.gui import (
-    QgsMessageBar,
-    QgisInterface
-)
-from qgis import processing
-
-import pandas as pd
 
 
 def get_line_candidates_ids(geom, other_layer, tolerance=0.2):
