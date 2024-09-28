@@ -268,11 +268,13 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         l = [(i.id(), clicked_point_geom.distance(i.geometry())) for i in self.gew_layer.getFeatures()]
         df = pd.DataFrame(l, columns=['id', 'dist'])
         df = df.sort_values('dist', ignore_index=True)
+        df = df.loc[df['dist'] >= 0]  # -1 wird bei NULL-geometrien gesetzt
         df2 = df.loc[df['dist'] < findGew_tolerance_dist]
         if len(df2) > 0:
             pass
             #dist_show = False
         else:
+            # falls alle zu weit weg sind (weiter als findGew_tolerance_dist)
             df2 = df.head(1)
             #dist_show = True
         self.show_text = ''
