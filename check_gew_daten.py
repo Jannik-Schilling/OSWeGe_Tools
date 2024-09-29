@@ -39,6 +39,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
+    QgsSpatialIndex,
     QgsWkbTypes
 )
 from qgis import processing
@@ -378,6 +379,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 visited_features_senken = []
                 list_geom_wassersch = []
                 list_geom_senken = []
+                spatial_index_other = QgsSpatialIndex(layer.getFeatures())
                 for i, feature in enumerate(layer.getFeatures()):
                     geom = feature.geometry()
                     feature_id = feature.id()
@@ -386,7 +388,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             wasserscheiden = check_geometrie_wasserscheide_senke(
                                 geom,
                                 feature_id,
-                                layer
+                                layer,
+                                spatial_index_other
                             )
                             if wasserscheiden:
                                 list_geom_wassersch.append(wasserscheiden)
@@ -398,6 +401,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 geom,
                                 feature_id,
                                 layer,
+                                spatial_index_other,
                                 senke=True
                             )
                             if senken:
@@ -414,6 +418,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             else:  # Ereignisse
                 feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
                 layer_gew = params['layer_dict']['gewaesser']['layer']
+                spatial_index_other = QgsSpatialIndex(layer_gew.getFeatures())
                 # gewaesser finden
                 report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {}
                 for i, feature in enumerate(layer.getFeatures()):
@@ -427,7 +432,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         #Linie / Punkt auf Gewaesserlinie ?
                         geom = feature.geometry()
                         if (layer.geometryType() == QgsWkbTypes.PointGeometry) and geom:  # Point and not None
-                            line_feature = get_line_to_check(geom, layer_gew)
+                            line_feature = get_line_to_check(geom, layer_gew, spatial_index_other)
                             if line_feature:
                                 if not check_vtx_distance(geom, line_feature.geometry()):
                                     # Distanz zum naechsten Gewaesser zu gross
@@ -439,7 +444,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 # kein Gewaesser in der Naehe gefunden
                                 dict_vtx_bericht = {feature_id: {'Lage': 1}}
                         else:
-                            dict_vtx_bericht = {feature_id: check_geom_on_line(geom, layer_gew, with_stat=True)}
+                            dict_vtx_bericht = {feature_id: check_geom_on_line(geom, layer_gew, spatial_index_other, with_stat=True)}
                     report_dict[key]['geometrien']['geom_ereign_auf_gew'].update(dict_vtx_bericht)
                 log_time((key+'_geom_auf_gew'))
                 if key == 'schaechte':
@@ -460,6 +465,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             + 'Kein(e) Layer für Rohrleitungen und Durchlässe)'
                         )
                     else:
+                        ######
+                        spatial_index_other =  QgsSpatialIndex(other_layer.getFeatures())
+                        ######
                         feedback.setProgressText(
                             '--- Korrekte Lage von Schächten an/auf '
                             + 'Rohrleitungen und Durchlässen'
@@ -471,7 +479,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             if (not geom) or feature_id in list_geom_is_multi:
                                 continue
                             feature_id = feature.id()
-                            line_feature = get_line_to_check(geom, other_layer)
+                            line_feature = get_line_to_check(geom, other_layer, spatial_index_other)
                             if line_feature:
                                 schacht_auf_rldl = check_vtx_distance(
                                     geom,
@@ -522,7 +530,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             write_report_text(report_dict, reportdatei_txt)
             feedback.setProgressText('Bericht als Text gespeichert unter: \n'+str(reportdatei_txt))
             log_time('TXT')
-        print(dict_log)
+        #print(dict_log)
         return {}
 
     def name(self):

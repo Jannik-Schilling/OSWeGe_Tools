@@ -5,33 +5,34 @@ from qgis.core import (
 )
 
 
-def get_line_candidates_ids(geom, other_layer, tolerance=0.2):
+def get_line_candidates_ids(geom, other_layer, spatial_index_other, tolerance=0.2):
     """
     Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
     :param other_layer
+    :param QgsSpatialIndex spatial_index_other
     :param float tolerance: Suchraum bei Punkten: default 0.2
     :return: list
     """
-    spatial_index_other = QgsSpatialIndex(other_layer.getFeatures())
     if geom.type() == 0:  # Point
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(tolerance))
     else:
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
     return intersecting_ids
 
-def get_line_to_check(geom, other_layer):
+def get_line_to_check(geom, other_layer, spatial_index_other):
     """
     Ermittelt mithilfe einer Boundingbox EIN Linienobjekt aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
     :param other_layer
+    :param QgsSpatialIndex spatial_index_other
     :return: QgsFeature
     """
     if geom.type() == 0:  # Point
         list_vtx_geom = [geom]
     else:
         list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-    intersecting_ids = get_line_candidates_ids(geom, other_layer)
+    intersecting_ids = get_line_candidates_ids(geom, other_layer, spatial_index_other)
     if len(intersecting_ids)==0:
         return
     else:
@@ -55,7 +56,6 @@ def check_duplicates_crossings(
     :param QgsVectorLayer layer,
     :param QgsProcessingFeedbackfeedback,
     :param float layer_steps,
-    :param str field_alternative_id: Feldname für eine andere id()
     """
     list_geom_duplicate = []
     list_geom_crossings = []
@@ -104,16 +104,17 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     return geom2.distance(vtx_geom) <= tolerance
 
 
-def check_geom_on_line(geom, gew_layer, with_stat=False):
+def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     """
     Prüft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
     :param QgsGeometry (Line) geom
     :param QgsVectorLayer (Line) gew_layer
+    :param QgsSpatialIndex spatial_index_other
     :param bool with_stat: Rückgabe der Staionierung?; default: False
     :return: dict
     """
     dict_vtx_bericht = {}  # Fehlermeldungen siehe defaults.dict_ereign_fehler
-    other_line_ft = get_line_to_check(geom, gew_layer)
+    other_line_ft = get_line_to_check(geom, gew_layer, spatial_index_other)
     gew_i_geom = other_line_ft.geometry()
     list_gew_stat = []
     list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
@@ -164,12 +165,14 @@ def check_geometrie_wasserscheide_senke(
     geom,
     feature_id,
     layer_gew,
+    spatial_index_other,
     senke=False
 ):
     '''
     :param QgsGeometry geom
     :param int feature_id
     :param QgsVectorLayer (line) layer_gew
+    :param QgsSpatialIndex spatial_index_other
     :param bool senke
     '''
     if senke:
@@ -179,7 +182,8 @@ def check_geometrie_wasserscheide_senke(
     vtx = get_vtx(geom, vtx_num)  # QgsGeometry
     intersecting_lines = get_line_candidates_ids(
         vtx,
-        layer_gew
+        layer_gew,
+        spatial_index_other
     )
     if feature_id in intersecting_lines:
         intersecting_lines.remove(feature_id)
