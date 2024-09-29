@@ -88,6 +88,11 @@ def replace_lst_ids(lst, dict_repl):
 
 
 def write_report_text(report_dict, txt_file):
+    """
+    Gerade nicht benutzt! Schreib das report_dict als Text; ist aber noch nicht fertig
+    :param dict report_dict
+    :param str txt_file
+    """
     with open(txt_file, 'w') as f:
         f.write(
             'Ergebnis des Datentests\nDatum: '
