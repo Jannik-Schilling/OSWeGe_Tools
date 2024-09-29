@@ -49,3 +49,19 @@ dict_ereign_fehler = {
         3: 'Schacht weder auf Gewaesser noch auf RL/DL'
     }
 }
+
+#
+dict_report_texts = {
+    'missing_fields': 'Fehlende Felder',
+    'primary_key_empty': 'Fehlender Gewässername (Primärschlüssel)',
+    'primary_key_duplicat': 'Doppelter Gewässername (ungültig als Primaerschlüssel)',
+    'gew_key_empty': 'Fehlender Gewässername',
+    'gew_key_invalid': 'Ungültiger Gewässername (im Gewässerlayer nicht vergeben)',
+    'geom_crossings': 'Überschneidung der Linien',
+    'geom_duplicate': 'Identische Geometrien (Duplikate)',
+    'geom_sefintersect': 'Selbstüberschneidung',
+    'geom_is_multi': 'Multigeometrie',
+    'geom_is_empty': 'Leere Geometrie',
+    'wasserscheiden': 'Alle Linien führen von einander weg (\"Wasserscheide\" ohne Zufluss)',
+    'senken': 'Alle Linien führen auf einander zu (\"Senke\" ohne Abfluss)'
+}

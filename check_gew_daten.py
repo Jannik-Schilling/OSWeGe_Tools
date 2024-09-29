@@ -28,6 +28,8 @@ __copyright__ = '(C) 2024 by Jannik Schilling'
 
 __revision__ = '$Format:%H$'
 
+import time
+
 from qgis.PyQt.QtCore import (
     QCoreApplication
 )
@@ -55,7 +57,8 @@ from .pruefungsroutinen import (
 
 from .check_gew_report import (
     create_report_dict,
-    replace_lst_ids
+    replace_lst_ids,
+    write_report_text
 )
 
 class checkGewaesserDaten(QgsProcessingAlgorithm):
@@ -68,6 +71,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     LAYER_WEHRE = 'LAYER_WEHRE'
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
+    REPORT_TXT = 'REPORT_TXT'
 
     def initAlgorithm(self, config):
         """
@@ -125,16 +129,32 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             )
         )
 
+        self.addParameter(
+            QgsProcessingParameterFileDestination(
+                self.REPORT_TXT,
+                self.tr('Reportdatei als Text'),
+                'Textdatei (*.txt)',
+                optional = True
+            )
+        )
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Hier findet die Verarbeitung statt
         """
+        dict_log={'current': time.time()}
+        def log_time(stepname):
+            current_time = dict_log['current']
+            dict_log[stepname] = round(time.time() - current_time,2)
+            dict_log['current'] = time.time()
+
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
         layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHLEITUNGEN, context)
         layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.LAYER_DURCHLAESSE, context)
         layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
+        reportdatei_txt = self.parameterAsString(parameters, self.REPORT_TXT, context)
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
         params = {
@@ -151,8 +171,11 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             'emptystrdef': [NULL, ''],  # mögliche "Leer"-Definitionen für Zeichketten
         }
 
+        feedback.setProgressText('Vorbereitung der Tests')
         # dictionary fuer Feedback / Fehlermeldungen
         report_dict = create_report_dict(params, is_test_version=True)
+        # Anzahl der zu bearbeitenden Layer
+        params['n_layer'] = len([l for l in report_dict if l != 'Hinweis'])
 
         # rl und dl zusammenfassen, fuer gemeinsame Auswertung (falls beide Layer vorhanden)
         if layer_rohrleitungen and layer_durchlaesse:
@@ -181,17 +204,23 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 }
             )['OUTPUT']
             params['layer_rldl'] = layer_rldl
+        feedback.setProgressText('Abgeschlossen \n ')
+        log_time('Vorbereitung')
 
-
-        def main_check(key, report_dict, params, feedback):
+        def main_check(key, report_dict, params, feedback, i):
             """
             Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte alle Layer zu pruefen (Attribute + Geometrien)
             :param str key
             :param dict report_dict
             :param dict params
             :param QgsProcessingFeedback feedback
+            :param int i: Zaehler fuers feedback
             """
-            feedback.setProgressText('Layer \"'+key+'\":')
+            feedback.setProgressText(
+                'Layer \"'
+                + key + '\" (' + str(i+1) + '/'
+                + str(params['n_layer'])
+                + '):')
             layer = params['layer_dict'][key]['layer']
             layer_steps = params['layer_dict'][key]['steps']
 
@@ -219,7 +248,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     list_primary_key_empty = []
                     prim_key_dict = {}
                     for i, feature in enumerate(layer.getFeatures()):
-                        feedback.setProgress(int(i * layer_steps))
+                        feedback.setProgress(int((i+1) * layer_steps))
                         ft_key = feature.attribute(ereign_gew_id_field)
                         if ft_key in params['emptystrdef']:
                             # fehlender Primaerschluessel
@@ -230,12 +259,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 prim_key_dict[ft_key].append(feature.id())
                             else:
                                 prim_key_dict[ft_key] = [feature.id()]
+                    log_time((key+'_Attr'))
                     list_primary_key_duplicat = [lst for lst in prim_key_dict.values() if len(lst) > 1]
                     report_dict[key]['attribute'] = {
                         'missing_fields': missing_fields,
                         'primary_key_empty': list_primary_key_empty,
                         'primary_key_duplicat': list_primary_key_duplicat
                     }
+                    log_time((key+'_Attr_write'))
                 else:  # Attributtest für Ereignisse
                     list_gew_key_empty = []
                     list_gew_key_invalid = []
@@ -257,7 +288,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     else:
                         list_gew_keys = [gew_ft.attribute(ereign_gew_id_field) for gew_ft in layer_gew.getFeatures()]
                         for i, feature in enumerate(layer.getFeatures()):
-                            feedback.setProgress(int(i * layer_steps))
+                            feedback.setProgress(int((i+1) * layer_steps))
                             ft_key = feature.attribute(ereign_gew_id_field)
                             if ft_key in params['emptystrdef']:
                                 # fehlender Gewaesserschluessel
@@ -266,11 +297,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 if not ft_key in list_gew_keys:
                                     # Der angegebene Gewaesserschluessel(=Gewaessername) ist nicht im Gewaesserlayer vergeben
                                     list_gew_key_invalid.append(feature.id())
+                        log_time((key+'_Attr'))
                         report_dict[key]['attribute'] = {
                             'missing_fields': missing_fields,
                             'gew_key_empty': list_gew_key_empty,
                             'gew_key_invalid': list_gew_key_invalid
                         }
+                        log_time((key+'_Attr_write'))
 
             # Geometrien
             feedback.setProgressText('-- Geometrien')
@@ -281,7 +314,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             list_geom_sefintersect = []
             feedback.setProgressText('--- Leere und Multigeometrien, Selbstüberschneidungen')
             for i, feature in enumerate(layer.getFeatures()):
-                feedback.setProgress(i+1*layer_steps)
+                feedback.setProgress(int((i+1) * layer_steps))
                 geom = feature.geometry()
                 if geom.isEmpty():
                     # Leer?
@@ -297,12 +330,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 # Selbstueberschneidungen
                     if not geom.isSimple():
                         list_geom_sefintersect.append(feature.id())
+            log_time((key+'_geom_leer_etc'))
             report_dict[key]['geometrien'] = {
                     'geom_is_empty': list_geom_is_empty,
                     'geom_is_multi': list_geom_is_multi,
                     'geom_sefintersect': list_geom_sefintersect
                 }
-
+            log_time((key+'_geom_leer_etc_write'))
+            
             feedback.setProgressText('--- Duplikate und Überschneidungen')
             if not ((key in ['rohrleitungen', 'durchlaesse']) and ('layer_rldl' in params.keys())):
                 # Normalfall
@@ -311,10 +346,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     feedback,
                     layer_steps
                 )
+                log_time((key+'_geom_dup_cro'))
                 report_dict[key]['geometrien']['geom_crossings'] = list_geom_crossings
                 report_dict[key]['geometrien']['geom_duplicate'] = list_geom_duplicate
+                log_time((key+'_geom_dup_cro_write'))
             else:
-                if not 'rldl' in report_dict.keys():  # falls es nicht schon einmal durchlaufen wurde
+                if not 'layer_rldl' in report_dict.keys():  # falls es nicht schon einmal durchlaufen wurde
                     layer_rldl = params['layer_rldl']
                     layer_steps = 100/layer_rldl.featureCount()
                     list_geom_crossings, list_geom_duplicate = check_duplicates_crossings(
@@ -322,47 +359,57 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         feedback,
                         layer_steps
                     )
+                    log_time((key+'_geom_dup_cro_rldl'))
                     dict_alternative_id = {feature.id(): feature[params['field_merged_id']] for feature in layer_rldl.getFeatures()}
                     list_geom_crossings_adjusted = replace_lst_ids(list_geom_crossings, dict_alternative_id)
                     list_geom_duplicate_adjusted = replace_lst_ids(list_geom_duplicate, dict_alternative_id)
-                    report_dict['rldl'] = {
+                    report_dict['layer_rldl'] = {
                         'geometrien': {
                             'geom_crossings': list_geom_crossings_adjusted,
                             'geom_duplicate': list_geom_duplicate_adjusted
                         }
                     }
+                    log_time((key+'_geom_dup_cro_rldl_write'))
 
             if key == 'gewaesser':
                 feedback.setProgressText('--- Wasserscheiden, Senken')
-                visited_features_wassersch = set()
-                visited_features_senken = set()
+                layer_steps = params['layer_dict'][key]['steps']
+                visited_features_wassersch = []
+                visited_features_senken = []
                 list_geom_wassersch = []
                 list_geom_senken = []
                 for i, feature in enumerate(layer.getFeatures()):
                     geom = feature.geometry()
                     feature_id = feature.id()
                     if geom:
-                        wasserscheiden = check_geometrie_wasserscheide_senke(
-                            geom,
-                            feature_id,
-                            layer
-                        )
-                        if wasserscheiden:
-                            if not wasserscheiden in visited_features_wassersch:
+                        if not feature_id in visited_features_wassersch:
+                            wasserscheiden = check_geometrie_wasserscheide_senke(
+                                geom,
+                                feature_id,
+                                layer
+                            )
+                            if wasserscheiden:
                                 list_geom_wassersch.append(wasserscheiden)
-                                visited_features_wassersch.add(wasserscheiden)
-                        senken = check_geometrie_wasserscheide_senke(
-                            geom,
-                            feature_id,
-                            layer,
-                            senke=True
-                        )
-                        if senken:
-                            if not senken in visited_features_senken:
+                                visited_features_wassersch = list(
+                                    set(visited_features_wassersch+list(wasserscheiden))
+                                )
+                        if not feature_id in visited_features_senken:
+                            senken = check_geometrie_wasserscheide_senke(
+                                geom,
+                                feature_id,
+                                layer,
+                                senke=True
+                            )
+                            if senken:
                                 list_geom_senken.append(senken)
-                                visited_features_senken.add(senken)
+                                visited_features_senken = list(
+                                    set(visited_features_senken+list(senken))
+                                )
+                    feedback.setProgress(int((i+1) * layer_steps))
+                log_time((key+'_geom_wassersc'))
                 report_dict[key]['geometrien']['wasserscheiden'] = list_geom_wassersch
                 report_dict[key]['geometrien']['senken'] = list_geom_senken
+                log_time((key+'_geom_wassersc_write'))
 
             else:  # Ereignisse
                 feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
@@ -370,7 +417,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 # gewaesser finden
                 report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {}
                 for i, feature in enumerate(layer.getFeatures()):
-                    feedback.setProgress(i+1*layer_steps)
+                    feedback.setProgress(int((i+1) * layer_steps))
                     feature_id = feature.id()
                     if feature_id in list_geom_is_empty:
                         pass
@@ -394,6 +441,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         else:
                             dict_vtx_bericht = {feature_id: check_geom_on_line(geom, layer_gew, with_stat=True)}
                     report_dict[key]['geometrien']['geom_ereign_auf_gew'].update(dict_vtx_bericht)
+                log_time((key+'_geom_auf_gew'))
                 if key == 'schaechte':
                     if 'layer_rldl' in params.keys():
                         other_layer = params['layer_rldl']
@@ -418,7 +466,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         )
                         dict_schacht_rldl = dict()
                         for i, feature in enumerate(layer.getFeatures()):
-                            feedback.setProgress(i+1*layer_steps)
+                            feedback.setProgress(int((i+1) * layer_steps))
                             geom = feature.geometry()
                             if (not geom) or feature_id in list_geom_is_multi:
                                 continue
@@ -449,20 +497,32 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             else:
                                 # fehler: schacht weder auf gewaesser noch auf rldl
                                 dict_schacht_rldl[feature_id] = 3
+                        log_time((key+'_geom_sch_auf_rldl'))
                         report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = dict_schacht_rldl
+                        log_time((key+'_geom_sch_auf_rldl_write'))
             feedback.setProgressText('Abgeschlossen \n ')
 
         # run test
-        for key in params['layer_dict'].keys():
+        for i, key in enumerate(params['layer_dict'].keys()):
             if key in report_dict.keys():
-                main_check(key, report_dict, params, feedback)
+                main_check(key, report_dict, params, feedback, i)
 
 
         import json
-        # dict_ereign_fehler
+        # 
+        feedback.setProgressText('Schreibe JSON ')
         with open(reportdatei, 'w', encoding='utf-8') as f:
             json.dump(report_dict, f, ensure_ascii=False, indent=4)
-        feedback.setProgressText('Bericht gespeichert unter: \n'+str(reportdatei))
+        feedback.setProgressText('Bericht als JSON gespeichert unter: \n'+str(reportdatei))
+        log_time('JSON')
+        
+        
+        if reportdatei_txt:
+            feedback.setProgressText('Schreibe TXT ')
+            write_report_text(report_dict, reportdatei_txt)
+            feedback.setProgressText('Bericht als Text gespeichert unter: \n'+str(reportdatei_txt))
+            log_time('TXT')
+        print(dict_log)
         return {}
 
     def name(self):

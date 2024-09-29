@@ -124,9 +124,7 @@ class oswege_tools_buttons:
             git_repo, git_version = get_metadata(path_meta_git, lokal=False)
         except Exception:
             git_version = lokal_version
-        if git_version == lokal_version:
-            iface.messageBar().pushMessage("Info", "Das Plugin ist akutell", level=Qgis.Info, duration=8)
-        else:
+        if not git_version == lokal_version:
             iface.messageBar().pushMessage(
                 "Info",
                 (
@@ -140,6 +138,9 @@ class oswege_tools_buttons:
                 level=Qgis.Info,
                 duration=8
             )
+        else:
+            pass
+            #iface.messageBar().pushMessage("Info", "Das Plugin ist aktuell", level=Qgis.Info, duration=8)
         
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""

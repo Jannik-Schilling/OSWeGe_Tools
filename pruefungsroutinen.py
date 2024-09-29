@@ -63,7 +63,7 @@ def check_duplicates_crossings(
     visited_groups_equal = set()
     spatial_index = QgsSpatialIndex(layer.getFeatures())
     for i, feature in enumerate(layer.getFeatures()):
-        feedback.setProgress(i+1*layer_steps)
+        feedback.setProgress(int((i+1) * layer_steps))
         geom = feature.geometry()
         feature_id = feature.id()
         if geom.isEmpty():
