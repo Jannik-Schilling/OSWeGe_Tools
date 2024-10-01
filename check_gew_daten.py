@@ -37,6 +37,7 @@ from qgis.core import (
     NULL,
     QgsProcessing,
     QgsProcessingAlgorithm,
+    QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
     QgsSpatialIndex,
@@ -72,6 +73,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     LAYER_WEHRE = 'LAYER_WEHRE'
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
+    REPORT_OUT = 'REPORT_OUT'
  
     def initAlgorithm(self, config):
         """
@@ -128,6 +130,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 'Json File (*.json)'                #'Textdatei (*.txt)',
             )
         )
+        
+        self.addOutput(
+            QgsProcessingOutputFile(
+                self.REPORT_OUT,
+                self.tr('Reportdatei: Json File(*.json)')
+            )
+        ) 
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -592,7 +601,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         log_time('JSON')
 
         #print(dict_log)
-        return {}
+        return {self.REPORT_OUT: reportdatei} 
 
     def name(self):
         return 'Pruefroutine_Gewaesserdaten'
