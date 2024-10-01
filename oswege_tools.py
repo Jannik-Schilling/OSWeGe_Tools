@@ -149,7 +149,7 @@ class oswege_tools_buttons:
                     + str(git_version)
                     + ')'
                 ),
-                level=Qgis.Warning,
+                level=Qgis.Info,
                
             )
         else:
