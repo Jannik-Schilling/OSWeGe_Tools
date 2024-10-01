@@ -154,7 +154,7 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
             first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
         first_segment = [QgsPoint(p) for p in first_segment]
         first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-        stationierung = first_segment_geom.length()
+        stationierung = round(first_segment_geom.length(),5)
         list_gew_stat.append(stationierung)
 
     # Richtung
@@ -281,8 +281,8 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
             for i in range(len(lst))
             for j in range(i + 1, len(lst))
         ]
-        lst_overlap_i = [i for i in lst_overlap if i]
-    lst_overlap = lst_overlap+lst_overlap_i
+        lst_overlap_i = [k for k in lst_overlap_i if k]
+        lst_overlap = lst_overlap+lst_overlap_i
     return lst_overlap
 
 def ranges_overlap(range1, range2):
@@ -293,6 +293,6 @@ def ranges_overlap(range1, range2):
     """
     id1, f0_1, f1_1 = range1
     id2, f0_2, f1_2 = range2
-    if f0_1 <= f1_2 and f0_2 <= f1_1:
+    if f0_1 < f1_2 and f0_2 < f1_1:
         return [id1, id2]
 
