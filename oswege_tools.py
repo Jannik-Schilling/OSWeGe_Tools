@@ -24,7 +24,6 @@
 import os
 import sys
 import inspect
-import urllib.request
 
 from qgis.core import (
     QgsProcessingAlgorithm,
@@ -37,7 +36,10 @@ from qgis.PyQt.QtCore import (
     QCoreApplication
 )
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QPushButton
+)
 from qgis.utils import iface
 
 # Initialize Qt resources from file resources.py
@@ -45,6 +47,10 @@ from .resources import *
 # Import the code for the dialog and provider
 from .stationierung_dialog import stationierungDialog
 from .oswegeToolsProvider import oswegeToolsProvider
+from .hilfsfunktionen import (
+    compare_versions,
+    get_metadata
+)
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 
@@ -92,51 +98,59 @@ class oswege_tools_buttons:
         
         
         # Check version
-        def get_metadata(file_path, lokal=True):
-            if lokal:
-                with open(file_path, 'r') as f:
-                    text = f.readlines()
-            else:
-                response = urllib.request.urlopen(path_meta_git)
-                text = response.read().decode('utf-8').split('\n')
-            has_repo = False
-            has_version = False
-            repo_line = ''
-            version_line = ''
-            for line in text:
-                if line.startswith('repository='):
-                    repo_line = line.split('=')[1].strip()
-                    has_repo = True
-                if line.startswith('version='):
-                    version_line = line.split('=')[1].strip()
-                    has_repo = True
-                if has_repo and has_version:
-                    break
-            return repo_line, version_line
-
         path_meta_local = os.path.abspath(os.path.join(
             os.path.dirname(__file__),
             'metadata.txt'))
         lokal_repo, lokal_version = get_metadata(path_meta_local)
-        
-        path_meta_git = "https://raw.githubusercontent.com/Jannik-Schilling/OSWeGe_Tools/refs/heads/main/metadata.txt"
+        path_meta_git = 'https://raw.githubusercontent.com/Jannik-Schilling/OSWeGe_Tools/refs/heads/main/metadata.txt'
+        url_git = 'https://github.com/Jannik-Schilling/OSWeGe_Tools'
         try:
             git_repo, git_version = get_metadata(path_meta_git, lokal=False)
         except Exception:
             git_version = lokal_version
-        if not git_version == lokal_version:
-            iface.messageBar().pushMessage(
-                "Info",
-                (
+
+        versions_status = compare_versions(lokal_version, git_version)
+        def open_git_link():
+            try:
+                import webbrowser
+                webbrowser.open(url_git)
+            except Exception:
+                iface.messageBar().pushMessage(
+                    "Info",
+                    (
+                        'Konnte denk Link nicht direkt öffen. Das Plugin ist unter '
+                         + url_git
+                         + 'verfügbar'
+                    ),
+                    level=Qgis.Warning,
+                    duration=2
+               )
+        if versions_status == 1:
+            widget_version = iface.messageBar().createMessage("OSWeGe Tools", (
                     'Es gibt eine neue Version ('
                     + str(lokal_version)
                     + ' > '
                     + str(git_version)
-                    + ') des Plugins \"oswege_tools\" auf GitHub, siehe '
-                    + str(lokal_repo)
+                    + ') des Plugins auf GitHub'
+                )
+            )
+            button_git = QPushButton(widget_version)
+            button_git.setText('öffne GitHub')
+            button_git.clicked.connect(open_git_link)
+            widget_version.layout().addWidget(button_git)
+            iface.messageBar().pushWidget(widget_version, Qgis.Info, duration=8)
+        elif versions_status == 2:
+            iface.messageBar().pushMessage(
+                "OSWeGe Tools [DEV]",
+                (
+                    'Die aktuelle Version Plugins ('
+                    + str(lokal_version)
+                    + ') ist neuer als die auf GitHub verfügbare ('
+                    + str(git_version)
+                    + ')'
                 ),
-                level=Qgis.Info,
-                duration=8
+                level=Qgis.Warning,
+               
             )
         else:
             pass
