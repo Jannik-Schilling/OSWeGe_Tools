@@ -4,34 +4,35 @@ from qgis.core import (
     QgsSpatialIndex
 )
 
-
-def get_line_candidates_ids(geom, other_layer, tolerance=0.2):
+# get-Funktionen
+def get_line_candidates_ids(geom, other_layer, spatial_index_other, tolerance=0.2):
     """
     Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
     :param other_layer
+    :param QgsSpatialIndex spatial_index_other
     :param float tolerance: Suchraum bei Punkten: default 0.2
     :return: list
     """
-    spatial_index_other = QgsSpatialIndex(other_layer.getFeatures())
     if geom.type() == 0:  # Point
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(tolerance))
     else:
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
     return intersecting_ids
 
-def get_line_to_check(geom, other_layer):
+def get_line_to_check(geom, other_layer, spatial_index_other):
     """
     Ermittelt mithilfe einer Boundingbox EIN Linienobjekt aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
     :param other_layer
+    :param QgsSpatialIndex spatial_index_other
     :return: QgsFeature
     """
     if geom.type() == 0:  # Point
         list_vtx_geom = [geom]
     else:
         list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-    intersecting_ids = get_line_candidates_ids(geom, other_layer)
+    intersecting_ids = get_line_candidates_ids(geom, other_layer, spatial_index_other)
     if len(intersecting_ids)==0:
         return
     else:
@@ -45,6 +46,20 @@ def get_line_to_check(geom, other_layer):
         line_feature = other_layer.getFeature(intersecting_ids[position_in_list])
         return line_feature
 
+def get_vtx(line_geom, vtx_index):
+    """
+    Gibt den Stuetzpunkt einer Liniengeometrie mit dem index vtx_index als QgsGeometry zurück
+    :param QgsGeometry line_geom
+    :param int vtx_index
+    :return QgsGeometry
+    """
+    if line_geom.isMultipart():
+        pt = QgsPoint(line_geom.asMultiPolyline()[vtx_index][vtx_index])
+    else: 
+        pt = QgsPoint(line_geom.asPolyline()[vtx_index])
+    return QgsGeometry(pt)
+
+# fuer alle
 def check_duplicates_crossings(
     layer,
     feedback,
@@ -55,7 +70,6 @@ def check_duplicates_crossings(
     :param QgsVectorLayer layer,
     :param QgsProcessingFeedbackfeedback,
     :param float layer_steps,
-    :param str field_alternative_id: Feldname für eine andere id()
     """
     list_geom_duplicate = []
     list_geom_crossings = []
@@ -63,7 +77,9 @@ def check_duplicates_crossings(
     visited_groups_equal = set()
     spatial_index = QgsSpatialIndex(layer.getFeatures())
     for i, feature in enumerate(layer.getFeatures()):
-        feedback.setProgress(i+1*layer_steps)
+        feedback.setProgress(int((i+1) * layer_steps))
+        if feedback.isCanceled():
+            break
         geom = feature.geometry()
         feature_id = feature.id()
         if geom.isEmpty():
@@ -73,6 +89,8 @@ def check_duplicates_crossings(
         else:
             intersecting_ids = spatial_index.intersects(geom.boundingBox())
         for fid in intersecting_ids:
+            if feedback.isCanceled():
+                break
             if fid == feature_id:
                 continue
             group_i = tuple(sorted([feature_id, fid]))
@@ -104,19 +122,23 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     return geom2.distance(vtx_geom) <= tolerance
 
 
-def check_geom_on_line(geom, gew_layer, with_stat=False):
+def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     """
     Prüft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
     :param QgsGeometry (Line) geom
     :param QgsVectorLayer (Line) gew_layer
+    :param QgsSpatialIndex spatial_index_other
     :param bool with_stat: Rückgabe der Staionierung?; default: False
     :return: dict
     """
     dict_vtx_bericht = {}  # Fehlermeldungen siehe defaults.dict_ereign_fehler
-    other_line_ft = get_line_to_check(geom, gew_layer)
+    other_line_ft = get_line_to_check(geom, gew_layer, spatial_index_other)
+    dict_vtx_bericht['gew_id'] = other_line_ft.id()
     gew_i_geom = other_line_ft.geometry()
     list_gew_stat = []
     list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
+
+    # Stationierung
     for vtx in list_vtx_geom:
         # naechster Punkt auf dem Gewässer, als Point XY
         nearest_gew_point = gew_i_geom.nearestPoint(vtx)
@@ -134,9 +156,17 @@ def check_geom_on_line(geom, gew_layer, with_stat=False):
         first_segment_geom = QgsGeometry.fromPolyline(first_segment)
         stationierung = first_segment_geom.length()
         list_gew_stat.append(stationierung)
+
+    # Richtung
+    if list_gew_stat == sorted(list_gew_stat):
+        dict_vtx_bericht['Richtung'] = 0  # korrekt
+    elif list_gew_stat == (sorted(list_gew_stat))[::-1]:
+        dict_vtx_bericht['Richtung'] = 1  # entgegengesetzte Richtung
+    else:
+        dict_vtx_bericht['Richtung'] = 2  # falsche Reihenfolge
     if with_stat:
-        dict_vtx_bericht['gew_id'] = other_line_ft.id()
         dict_vtx_bericht['vtx_stat'] = list_gew_stat
+
     # Den Linienabschnitt zum Vergleich generieren
     for i, part in enumerate(gew_i_geom.parts()):
         if i > 0:
@@ -144,12 +174,16 @@ def check_geom_on_line(geom, gew_layer, with_stat=False):
         else:
             sub_line = part.curveSubstring(list_gew_stat[0] , list_gew_stat[-1])
     list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.vertices()]
+
+    # Anzahl der Stützpunkte
     if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 1
+        dict_vtx_bericht['Anzahl'] = 1  # zu viele
     if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 2
+        dict_vtx_bericht['Anzahl'] = 2  # zu wenige
     if len(list_vtx_geom) == len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 0
+        dict_vtx_bericht['Anzahl'] = 0  # korrekt
+
+        # Lage
         list_point_on_line = []
         for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
             list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
@@ -164,12 +198,14 @@ def check_geometrie_wasserscheide_senke(
     geom,
     feature_id,
     layer_gew,
+    spatial_index_other,
     senke=False
 ):
     '''
     :param QgsGeometry geom
     :param int feature_id
     :param QgsVectorLayer (line) layer_gew
+    :param QgsSpatialIndex spatial_index_other
     :param bool senke
     '''
     if senke:
@@ -179,7 +215,8 @@ def check_geometrie_wasserscheide_senke(
     vtx = get_vtx(geom, vtx_num)  # QgsGeometry
     intersecting_lines = get_line_candidates_ids(
         vtx,
-        layer_gew
+        layer_gew,
+        spatial_index_other
     )
     if feature_id in intersecting_lines:
         intersecting_lines.remove(feature_id)
@@ -199,17 +236,63 @@ def check_geometrie_wasserscheide_senke(
         else:
             return None
 
-
-
-def get_vtx(line_geom, vtx_index):
+def check_overlap_by_stat(params, report_dict, layer_steps):
     """
-    Gibt den Stuetzpunkt einer Liniengeometrie mit dem index vtx_index als QgsGeometry zurück
-    :param QgsGeometry line_geom
-    :param int vtx_index
-    :return QgsGeometry
+    Ueberprueft die Ueberlappung von Linienereignissen anhand der Stationierung
+    :param dict params
+    :param dict report_dict
+    :param float layer_steps
     """
-    if line_geom.isMultipart():
-        pt = QgsPoint(line_geom.asMultiPolyline()[vtx_index][vtx_index])
-    else: 
-        pt = QgsPoint(line_geom.asPolyline()[vtx_index])
-    return QgsGeometry(pt)
+    feedback = params['feedback']
+
+    # Auswahl des Layers
+    if 'layer_rldl' in report_dict.keys():
+        dict_vorher = report_dict['layer_rldl']['geometrien']['geom_ereign_auf_gew']
+    else:
+        if 'rohrleitungen' in report_dict.keys():
+            dict_vorher = report_dict['rohrleitungen']['geometrien']['geom_ereign_auf_gew']
+        elif 'durchlaesse' in report_dict.keys():
+            dict_vorher = report_dict['durchlaesse']['geometrien']['geom_ereign_auf_gew']
+        else:
+            dict_vorher = {}
+            layer_steps = 1
+
+    # Das Stationierungs-Dict je Gewässer aufbereiten
+    dict_stat = {}
+    i = 0
+    for feature_id, dct in dict_vorher.items():
+        feedback.setProgress(int((i+1) * layer_steps))
+        i = i + 1
+        if feedback.isCanceled():
+            break
+        gew_id = dct['gew_id']
+        start = min(dct['vtx_stat'])
+        stop = max(dct['vtx_stat'])
+        lst_i = [feature_id, start, stop]
+        if gew_id in dict_stat.keys():
+            dict_stat[gew_id].append(lst_i)
+        else:
+            dict_stat[gew_id] = [lst_i]
+
+    # nun fuer jedes gewaesser einmal pruefen
+    lst_overlap = []
+    for lst in dict_stat.values():
+        lst_overlap_i = [ranges_overlap(lst[i], lst[j])
+            for i in range(len(lst))
+            for j in range(i + 1, len(lst))
+        ]
+        lst_overlap_i = [i for i in lst_overlap if i]
+    lst_overlap = lst_overlap+lst_overlap_i
+    return lst_overlap
+
+def ranges_overlap(range1, range2):
+    """
+    Check if two ranges (represented as [f0, f1]) overlap.
+    :param list range1
+    :param list range2
+    """
+    id1, f0_1, f1_1 = range1
+    id2, f0_2, f1_2 = range2
+    if f0_1 <= f1_2 and f0_2 <= f1_1:
+        return [id1, id2]
+

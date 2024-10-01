@@ -1,4 +1,7 @@
 # dieses script Enthaelt die Funktionen fuer den Report
+from datetime import datetime
+from .defaults import dict_report_texts
+
 
 def create_report_dict(params, is_test_version=False):
     """
@@ -46,6 +49,7 @@ def create_report_dict(params, is_test_version=False):
         )
     for key, value in params['layer_dict'].items():
         layer = value['layer']
+        list_remove = []
         if layer:
             # Anzahl Objekte fuer das Feedback
             ft_count = layer.featureCount() if layer.featureCount() else 0
@@ -55,6 +59,10 @@ def create_report_dict(params, is_test_version=False):
                 'steps': layer_steps
             })
             report_dict[key] = {'name': layer.name()}
+        else:
+            list_remove.append(key)
+    for k in list_remove:
+        del(params['layer_dict'][k])
     return report_dict
 
 
@@ -78,9 +86,67 @@ def replace_lst_ids(lst, dict_repl):
                 new_list.append(elem)
     return new_list
 
-def write_report_text():
-    pass
 
+def write_report_text(report_dict, txt_file):
+    """
+    Gerade nicht benutzt! Schreib das report_dict als Text; ist aber noch nicht fertig
+    :param dict report_dict
+    :param str txt_file
+    """
+    with open(txt_file, 'w') as f:
+        f.write(
+            'Ergebnis des Datentests\nDatum: '
+            + datetime.today().strftime('%d.%m.%Y')
+            + '\n \n'
+        )
+        for key in report_dict.keys():
+            if key == 'Hinweis':
+                continue
+            if not key == 'layer_rldl':
+                #Ueberschrift
+                f.write(
+                    key.capitalize()
+                    + '\n'
+                    + '-'*len(key)
+                    + '\n'
+                )
+                f.write(
+                    'Layer: '
+                    + report_dict[key]['name']
+                    + '\n'
+                )
+                if len(report_dict[key]['attribute']) > 0 or all([len(v)==0 for v in report_dict[key]['attribute'].values()]):
+                    f.write('Attribute:\n')
+                    for k, v in report_dict[key]['attribute'].items():
+                        text_line = write_text_lines(k, v)
+                        f.write(text_line)
+                else:
+                    f.write('Attribute: kein Fehler\n')
+                if len(report_dict[key]['geometrien']) > 0 or all([len(v)==0 for v in report_dict[key]['geometrien'].values()]):
+                    f.write('Geometrien:\n')
+                    for k, v in report_dict[key]['geometrien'].items():
+                        text_line = write_text_lines(k, v)
+                        f.write(text_line)
+                else:
+                    f.write('Geometrien: kein Fehler\n')
+                f.write('\n\n')
+
+def write_text_lines(k, v):
+    """
+    :param str k
+    :param list/dict v
+    """
+    if len(v) != 0:
+        if k == 'geom_ereign_auf_gew':
+            text_line = ' - ' + k + str(v) + '\n'
+        elif k == 'geom_schacht_auf_rldl':
+            text_line = ' - ' + k + str(v) + '\n'
+        else:
+            text1 = dict_report_texts[k]
+            text_line = ' - ' + text1 + ': ' + ', '.join([str(i) for i in v]) + '\n'
+    else:
+        text_line = ''
+    return text_line
 
 def write_report_layer():
     pass
