@@ -80,7 +80,7 @@ class oswegeToolsProvider(QgsProcessingProvider):
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
         """
-        return QIcon(os.path.join(pluginPath, "icons", "logo_neu_3farben.svg"))
+        return QIcon(os.path.join(pluginPath, "icons", "icon.png"))
 
     def longName(self):
         """

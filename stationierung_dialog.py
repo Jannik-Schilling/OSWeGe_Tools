@@ -82,13 +82,17 @@ class PrintSnappedPoint(QgsMapToolEmitPoint):
         self.snapping_config.setMode(
             QgsSnappingConfig.AdvancedConfiguration
         )
+        """
         self.snapping_settings = QgsSnappingConfig.IndividualLayerSettings()
         self.snapping_settings.setEnabled(True)
+        """
         self.layer_snaplist = layer_snaplist
         for ly in self.layer_snaplist:
             if ly is not None:
+                self.snapping_settings = QgsSnappingConfig.IndividualLayerSettings()
+                self.snapping_settings.setEnabled(True)
                 if ly.geometryType() == QgsWkbTypes.LineGeometry:
-                    self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex | Qgis.SnappingType.Segment)
+                    self.snapping_settings.setTypeFlag(Qgis.SnappingTypes(Qgis.SnappingType.Vertex | Qgis.SnappingType.Segment))
                 else:
                     self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex)
                 self.snapping_settings.setTolerance(15)
