@@ -9,15 +9,15 @@ def create_report_dict(params, is_test_version=False):
     Aufbau:     
     report_dict = {
         'gewaesser': {
-            'name': 'so heisst die Datei",
+            'name': 'so heisst die Datei',
             'attribute': {
                 'missing_fields': [],
                 'primary_key_empty': [id1, id2],
                 'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
             },
             'geometrien': {
-                fehler1: [],
-                fehler2: []
+                'fehler1': [],
+                'fehler2': []
             }
         },
         'rohrleitungen': {
@@ -30,8 +30,8 @@ def create_report_dict(params, is_test_version=False):
                 'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
             },
             'geometrien': {
-                fehler1: [],
-                fehler2: []
+                'fehler1': [],
+                'fehler2': []
             }
         }
     }
@@ -87,6 +87,29 @@ def replace_lst_ids(lst, dict_repl):
     return new_list
 
 
+def clean_report_dict(report_dict):
+    """
+    Loescht leere Listen und Dicts im report_dict
+    :param dict report_dict
+    """
+    for key in report_dict.keys():
+        if key == 'Hinweis':
+            continue
+        #if not key == 'layer_rldl':
+        for rep_section in ['attribute','geometrien']:
+            del_list = []
+            for rep_sub_section, lst in report_dict[key][rep_section].items():
+                if len(lst) == 0:
+                    del_list.append(rep_sub_section)
+            for rep_sub_section in del_list:
+                del report_dict[key][rep_section][rep_sub_section]
+        for rep_section in ['attribute','geometrien']:
+            if len(report_dict[key][rep_section]) == 0:
+                del report_dict[key][rep_section]
+
+
+
+# Funktionen fuer die Textausgabe
 def write_report_text(report_dict, txt_file):
     """
     Gerade nicht benutzt! Schreib das report_dict als Text; ist aber noch nicht fertig
@@ -148,5 +171,8 @@ def write_text_lines(k, v):
         text_line = ''
     return text_line
 
+
+
+# Funktionen fuer die Layerausgabe
 def write_report_layer():
     pass
