@@ -1,6 +1,7 @@
 # dieses script Enthaelt die Funktionen fuer den Report
 from datetime import datetime
 from .defaults import dict_report_texts
+import copy
 
 
 def create_report_dict(params, is_test_version=False):
@@ -9,15 +10,15 @@ def create_report_dict(params, is_test_version=False):
     Aufbau:     
     report_dict = {
         'gewaesser': {
-            'name': 'so heisst die Datei",
+            'name': 'so heisst die Datei',
             'attribute': {
                 'missing_fields': [],
                 'primary_key_empty': [id1, id2],
                 'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
             },
             'geometrien': {
-                fehler1: [],
-                fehler2: []
+                'fehler1': [],
+                'fehler2': []
             }
         },
         'rohrleitungen': {
@@ -30,8 +31,8 @@ def create_report_dict(params, is_test_version=False):
                 'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
             },
             'geometrien': {
-                fehler1: [],
-                fehler2: []
+                'fehler1': [],
+                'fehler2': []
             }
         }
     }
@@ -87,6 +88,79 @@ def replace_lst_ids(lst, dict_repl):
     return new_list
 
 
+
+
+# Aufraeumfunktionen
+def clean_report_dict(report_dict, feedback):
+    """
+    Loescht leere Listen und Dicts im report_dict
+    :param dict report_dict
+    :param QgsProcessingFeedback feedback
+    """
+    step_temp = 100/len(report_dict)
+    for i, key in enumerate(report_dict.keys()):
+        if feedback.isCanceled():
+            break
+        if key == 'Hinweis':
+            continue
+        feedback.setProgress(int((i+1) * step_temp))
+        for rep_section in ['attribute','geometrien']:
+            if not rep_section in report_dict[key].keys():
+                pass
+            else:
+                if rep_section == 'geometrien':
+                    # Spezialroutine fuer die Dicts
+                    if 'geom_ereign_auf_gew' in report_dict[key]['geometrien'].keys():
+                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
+                            elem_id: clean_ereign_auf(
+                                dict_i
+                            ) for elem_id, dict_i in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if clean_ereign_auf(dict_i)
+                        }
+                    if 'geom_schacht_auf_rldl' in report_dict[key]['geometrien'].keys():
+                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
+                            elem_id: value for elem_id, value in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if value
+                        }
+                report_dict[key][rep_section] = {
+                    sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
+                }
+                if len(report_dict[key][rep_section]) == 0:
+                    del report_dict[key][rep_section]
+
+def clean_ereign_auf(dict_i):
+    """
+    Bereinigt die Unterabschnitte 'geom_ereign_auf_gew', 'geom_schacht_auf_rldl' im report_dict
+    :param dict dict_i
+    """
+    del_log_list = [1,1,1]  # 0, wenn eines nicht geaendert wird
+    dct_i_copy = copy.deepcopy(dict_i)
+    if 'Lage' in dct_i_copy.keys():
+        if dct_i_copy['Lage'] == 0:
+            del dct_i_copy['Lage']
+        else:
+            del_log_list[0] = 0
+    if 'Richtung' in dct_i_copy.keys():
+        if dct_i_copy['Richtung'] == 0:
+            del dct_i_copy['Richtung']
+        else:
+            del_log_list[1] = 0
+    if 'Anzahl' in dct_i_copy.keys():
+        if dct_i_copy['Anzahl'] == 0:
+            del dct_i_copy['Anzahl']
+        else: 
+            del_log_list[2] =0
+    if all(del_log_list):
+        return
+    else:
+        if 'gew_id' in dct_i_copy.keys():
+            del dct_i_copy['gew_id']
+        if 'vtx_stat' in dct_i_copy.keys():
+            del dct_i_copy['vtx_stat']
+        return dct_i_copy
+        
+    
+
+
+# Funktionen fuer die Textausgabe
 def write_report_text(report_dict, txt_file):
     """
     Gerade nicht benutzt! Schreib das report_dict als Text; ist aber noch nicht fertig
@@ -148,5 +222,8 @@ def write_text_lines(k, v):
         text_line = ''
     return text_line
 
+
+
+# Funktionen fuer die Layerausgabe
 def write_report_layer():
     pass
