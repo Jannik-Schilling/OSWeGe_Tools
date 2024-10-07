@@ -117,8 +117,8 @@ def clean_report_dict(report_dict, feedback):
                             ) for elem_id, dict_i in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if clean_ereign_auf(dict_i)
                         }
                     if 'geom_schacht_auf_rldl' in report_dict[key]['geometrien'].keys():
-                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
-                            elem_id: value for elem_id, value in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if value
+                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = {
+                            elem_id: value for elem_id, value in report_dict[key]['geometrien']['geom_schacht_auf_rldl'].items() if value
                         }
                 report_dict[key][rep_section] = {
                     sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
