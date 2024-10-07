@@ -1,6 +1,7 @@
 # dieses script Enthaelt die Funktionen fuer den Report
 from datetime import datetime
 from .defaults import dict_report_texts
+import copy
 
 
 def create_report_dict(params, is_test_version=False):
@@ -87,26 +88,76 @@ def replace_lst_ids(lst, dict_repl):
     return new_list
 
 
-def clean_report_dict(report_dict):
+
+
+# Aufraeumfunktionen
+def clean_report_dict(report_dict, feedback):
     """
     Loescht leere Listen und Dicts im report_dict
     :param dict report_dict
+    :param QgsProcessingFeedback feedback
     """
-    for key in report_dict.keys():
+    step_temp = 100/len(report_dict)
+    for i, key in enumerate(report_dict.keys()):
+        if feedback.isCanceled():
+            break
         if key == 'Hinweis':
             continue
-        #if not key == 'layer_rldl':
+        feedback.setProgress(int((i+1) * step_temp))
         for rep_section in ['attribute','geometrien']:
-            del_list = []
-            for rep_sub_section, lst in report_dict[key][rep_section].items():
-                if len(lst) == 0:
-                    del_list.append(rep_sub_section)
-            for rep_sub_section in del_list:
-                del report_dict[key][rep_section][rep_sub_section]
-        for rep_section in ['attribute','geometrien']:
-            if len(report_dict[key][rep_section]) == 0:
-                del report_dict[key][rep_section]
+            if not rep_section in report_dict[key].keys():
+                pass
+            else:
+                if rep_section == 'geometrien':
+                    # Spezialroutine fuer die Dicts
+                    if 'geom_ereign_auf_gew' in report_dict[key]['geometrien'].keys():
+                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
+                            elem_id: clean_ereign_auf(
+                                dict_i
+                            ) for elem_id, dict_i in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if clean_ereign_auf(dict_i)
+                        }
+                    if 'geom_schacht_auf_rldl' in report_dict[key]['geometrien'].keys():
+                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
+                            elem_id: value for elem_id, value in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if value
+                        }
+                report_dict[key][rep_section] = {
+                    sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
+                }
+                if len(report_dict[key][rep_section]) == 0:
+                    del report_dict[key][rep_section]
 
+def clean_ereign_auf(dict_i):
+    """
+    Bereinigt die Unterabschnitte 'geom_ereign_auf_gew', 'geom_schacht_auf_rldl' im report_dict
+    :param dict dict_i
+    """
+    del_log_list = [1,1,1]  # 0, wenn eines nicht geaendert wird
+    dct_i_copy = copy.deepcopy(dict_i)
+    if 'Lage' in dct_i_copy.keys():
+        if dct_i_copy['Lage'] == 0:
+            del dct_i_copy['Lage']
+        else:
+            del_log_list[0] = 0
+    if 'Richtung' in dct_i_copy.keys():
+        if dct_i_copy['Richtung'] == 0:
+            del dct_i_copy['Richtung']
+        else:
+            del_log_list[1] = 0
+    if 'Anzahl' in dct_i_copy.keys():
+        if dct_i_copy['Anzahl'] == 0:
+            del dct_i_copy['Anzahl']
+        else: 
+            del_log_list[2] =0
+    if all(del_log_list):
+        return
+    else:
+        if 'gew_id' in dct_i_copy.keys():
+            del dct_i_copy['gew_id']
+        if 'vtx_stat' in dct_i_copy.keys():
+            del dct_i_copy['vtx_stat']
+        return dct_i_copy
+        
+    
 
 
 # Funktionen fuer die Textausgabe

@@ -59,6 +59,7 @@ from .pruefungsroutinen import (
 )
 
 from .check_gew_report import (
+    clean_report_dict,
     create_report_dict,
     replace_lst_ids
 )
@@ -142,6 +143,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         """
         Hier findet die Verarbeitung statt
         """
+        # Festlegung für Testversion 
+        test_output_all = False
+        is_test_version = True
 
         # Zeitlogger
         dict_log={'current': time.time()}
@@ -179,7 +183,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # dictionary fuer Feedback / Fehlermeldungen
         feedback.setProgressText('Vorbereitung der Tests')
-        report_dict = create_report_dict(params, is_test_version=True)
+        report_dict = create_report_dict(params, is_test_version)
 
         # Anzahl der zu bearbeitenden Layer
         params['n_layer'] = len([l for l in report_dict if l != 'Hinweis'])
@@ -588,9 +592,17 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     i
                 )
 
+        
+        
+        # Ausgabe:
+        # 1 report_dict bereinigen
+        if not test_output_all:
+            feedback.setProgressText('Bereite Ausgabe vor')
+            clean_report_dict(report_dict, feedback)
+            feedback.setProgressText('Abgeschlossen \n ')
 
+        # 2 Ausgabe schreiben
         import json
-        # 
         feedback.setProgressText('Schreibe JSON ')
         with open(reportdatei, 'w', encoding='utf-8') as f:
             json.dump(report_dict, f, ensure_ascii=False, indent=4)
