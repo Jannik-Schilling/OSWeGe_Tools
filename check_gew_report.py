@@ -1,7 +1,13 @@
 # dieses script Enthaelt die Funktionen fuer den Report
 from datetime import datetime
-from .defaults import dict_report_texts
 import copy
+
+from qgis.core import (
+    QgsVectorLayer,
+)
+from qgis.PyQt.QtCore import QVariant
+
+from .defaults import dict_report_texts
 
 
 def create_report_dict(params, is_test_version=False):
@@ -165,11 +171,27 @@ def write_report_layer(layer_typ):
     :param str layer_typ
     :return: QgsVectorLayer
     """
-    pass
+    geom_type = 'NoGeometry'  # einfache Tabellen
+    vector_layer = QgsVectorLayer(geom_type, layer_typ, 'memory')  # layer_typ wird der name
+    vector_layer.startEditing()
+    column_name = 'test'
+    if not column_name in vector_layer.fields().names():
+        field_type = field_types_dict[field_type_string]
+        # QgsField is deprecated since QGIS 3.38 -> QMetaType
+        vector_layer.addAttribute(QgsField(colum_name, QVariant.Int))
+    vector_layer.updateFields()
     # Layer anlegen: 
         # wenn Spalte nicht vorhanden: anlegen
 
     # Objekt: 
+    feature_list = []
+    ft = QgsFeature()
+    attrlist = [1]
+    ft.setAttributes(attrlist)
+    feature_list.append(ft)
+    vector_layer.addFeatures(feature_list)
+    vector_layer.updateExtents()
+    vector_layer.commitChanges()
         # wenn nicht vorhanden: anlegen
         # Fehler als dict mit Spaltennamen:
             # wenn Liste, dann einfacher Eintrag
