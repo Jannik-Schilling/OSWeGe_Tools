@@ -4,6 +4,8 @@ from qgis.core import (
     QgsSpatialIndex
 )
 
+import pandas as pd
+
 # get-Funktionen
 def get_line_candidates_ids(geom, other_layer, spatial_index_other, tolerance=0.2):
     """
@@ -86,8 +88,10 @@ def check_duplicates_crossings(
             continue
         if geom.type() == 0:  # Point
             intersecting_ids = spatial_index.intersects(geom.boundingBox().buffered(0.2))
+            column_names = ['id', 'geometry']
         else:
             intersecting_ids = spatial_index.intersects(geom.boundingBox())
+            column_names = ['id1', 'id2', 'geometry']
         for fid in intersecting_ids:
             if feedback.isCanceled():
                 break
@@ -100,20 +104,23 @@ def check_duplicates_crossings(
                 if group_i in visited_groups_equal:
                     pass
                 else:
-                    list_geom_duplicate.append(group_i)
+                    list_geom_duplicate.append(list(group_i)+[geom])
                     visited_groups_equal.add(group_i)
             if geom.crosses(other_geom):
                 if group_i in visited_groups_crossings:
                     pass
                 else:
-                    list_geom_crossings.append(group_i)
+                    intersection_point = geom.intersection(other_geom)
+                    list_geom_crossings.append(list(group_i)+[intersection_point])
                     visited_groups_crossings.add(group_i)
-    return list_geom_crossings, list_geom_duplicate
+    df_geom_crossings = pd.DataFrame(list_geom_crossings, columns = column_names)
+    df_geom_duplicate = pd.DataFrame(list_geom_duplicate, columns = column_names)
+    return df_geom_crossings, df_geom_duplicate
 
 
 def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     """
-    Prüft, ob der vtx maximal die Toleranz x von einer zweiten Geometrie entferne ist
+    Prueft, ob der vtx maximal die Toleranz x von einer zweiten Geometrie entfernt ist
     :param QgsGeometry vtx_geom
     :param QgsGeometry geom
     :param float tolerance
@@ -124,16 +131,17 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
 
 def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     """
-    Prüft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
+    Prueft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
     :param QgsGeometry (Line) geom
     :param QgsVectorLayer (Line) gew_layer
     :param QgsSpatialIndex spatial_index_other
     :param bool with_stat: Rückgabe der Staionierung?; default: False
     :return: dict
     """
-    dict_vtx_bericht = {}  # Fehlermeldungen siehe defaults.dict_ereign_fehler
+    dict_vtx_bericht = {}  
+    sr_vtx_report = pd.Series()  # Fehlermeldungen siehe defaults.dict_ereign_fehler
     other_line_ft = get_line_to_check(geom, gew_layer, spatial_index_other)
-    dict_vtx_bericht['gew_id'] = other_line_ft.id()
+    sr_vtx_report['gew_id'] = other_line_ft.id()
     gew_i_geom = other_line_ft.geometry()
     list_gew_stat = []
     list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
@@ -158,14 +166,14 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
         list_gew_stat.append(stationierung)
 
     # Richtung
-    if list_gew_stat == sorted(list_gew_stat):
-        dict_vtx_bericht['Richtung'] = 0  # korrekt
-    elif list_gew_stat == (sorted(list_gew_stat))[::-1]:
-        dict_vtx_bericht['Richtung'] = 1  # entgegengesetzte Richtung
-    else:
-        dict_vtx_bericht['Richtung'] = 2  # falsche Reihenfolge
     if with_stat:
-        dict_vtx_bericht['vtx_stat'] = list_gew_stat
+        sr_vtx_report['vtx_stat'] = list_gew_stat
+    if list_gew_stat == sorted(list_gew_stat):
+        sr_vtx_report['Richtung'] = 0  # korrekt
+    elif list_gew_stat == (sorted(list_gew_stat))[::-1]:
+        sr_vtx_report['Richtung'] = 1  # entgegengesetzte Richtung 
+    else:
+        sr_vtx_report['Richtung'] = 2  # falsche Reihenfolge
 
     # Den Linienabschnitt zum Vergleich generieren
     for i, part in enumerate(gew_i_geom.parts()):
@@ -176,22 +184,23 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.vertices()]
 
     # Anzahl der Stützpunkte
-    if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 1  # zu viele
-    if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 2  # zu wenige
     if len(list_vtx_geom) == len(list_sub_line_vtx_geom):
-        dict_vtx_bericht['Anzahl'] = 0  # korrekt
+        sr_vtx_report['Anzahl'] = 0  # korrekt
+    if len(list_vtx_geom) > len(list_sub_line_vtx_geom):
+        sr_vtx_report['Anzahl'] = 1  # zu viele
+    if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
+        sr_vtx_report['Anzahl'] = 2  # zu wenige
 
         # Lage
         list_point_on_line = []
         for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
             list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
         if not all(list_point_on_line):
-            dict_vtx_bericht['Lage'] = 1
+            sr_vtx_report['Lage'] = 1  # Abweichung
         else:
-            dict_vtx_bericht['Lage'] = 0
-    return dict_vtx_bericht
+            sr_vtx_report['Lage'] = 0  # Korrekt
+    sr_vtx_report['geometry'] = geom
+    return sr_vtx_report
 
 
 def check_geometrie_wasserscheide_senke(
@@ -207,6 +216,7 @@ def check_geometrie_wasserscheide_senke(
     :param QgsVectorLayer (line) layer_gew
     :param QgsSpatialIndex spatial_index_other
     :param bool senke
+    :return list
     '''
     if senke:
         vtx_num = 0
@@ -232,7 +242,7 @@ def check_geometrie_wasserscheide_senke(
             else:
                 check_dupl_list.append(0)
         if all([x == 1 for x in check_dupl_list]):
-            return tuple(sorted([feature_id]+intersecting_lines))
+            return [sorted([feature_id] + intersecting_lines)]+[vtx]
         else:
             return None
 
@@ -247,28 +257,31 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
 
     # Auswahl des Layers
     if 'layer_rldl' in report_dict.keys():
-        dict_vorher = report_dict['layer_rldl']['geometrien']['geom_ereign_auf_gew']
+        df_vorher = report_dict['layer_rldl']['geometrien']['geom_ereign_auf_gew']
     else:
         if 'rohrleitungen' in report_dict.keys():
-            dict_vorher = report_dict['rohrleitungen']['geometrien']['geom_ereign_auf_gew']
+            df_vorher = report_dict['rohrleitungen']['geometrien']['geom_ereign_auf_gew']
         elif 'durchlaesse' in report_dict.keys():
-            dict_vorher = report_dict['durchlaesse']['geometrien']['geom_ereign_auf_gew']
+            df_vorher = report_dict['durchlaesse']['geometrien']['geom_ereign_auf_gew']
         else:
-            dict_vorher = {}
+            df_vorher = pd.DataFrame()
             layer_steps = 1
 
     # Das Stationierungs-Dict je Gewässer aufbereiten
     dict_stat = {}
-    i = 0
-    for feature_id, dct in dict_vorher.items():
-        feedback.setProgress(int((i+1) * layer_steps))
-        i = i + 1
+    #print(df_vorher)
+    df_vorher['start'] = [min(lst) for lst in df_vorher['vtx_stat']]
+    df_vorher['stop'] = [max(lst) for lst in df_vorher['vtx_stat']]
+    for i in df_vorher.index:
         if feedback.isCanceled():
             break
-        gew_id = dct['gew_id']
-        start = min(dct['vtx_stat'])
-        stop = max(dct['vtx_stat'])
-        lst_i = [feature_id, start, stop]
+        elem = df_vorher.loc[i,:]
+        gew_id = elem['gew_id']
+        feature_id = elem['id']
+        start = elem['start']
+        stop = elem['stop']
+        geom = elem['geometry']
+        lst_i = [feature_id, start, stop, geom]
         if gew_id in dict_stat.keys():
             dict_stat[gew_id].append(lst_i)
         else:
@@ -291,8 +304,8 @@ def ranges_overlap(range1, range2):
     :param list range1
     :param list range2
     """
-    id1, f0_1, f1_1 = range1
-    id2, f0_2, f1_2 = range2
+    id1, f0_1, f1_1, geom1 = range1
+    id2, f0_2, f1_2, geom2 = range2
     if f0_1 < f1_2 and f0_2 < f1_1:
-        return [id1, id2]
+        return [id1, id2, geom1]
 
