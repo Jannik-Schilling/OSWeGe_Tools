@@ -289,11 +289,13 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
 
     # nun fuer jedes gewaesser einmal pruefen
     lst_overlap = []
-    for lst in dict_stat.values():
+    for key, lst in dict_stat.items():
         lst_overlap_i = [ranges_overlap(lst[i], lst[j])
             for i in range(len(lst))
             for j in range(i + 1, len(lst))
         ]
+        #if key == 305:
+        #    print(lst_overlap_i)
         lst_overlap_i = [k for k in lst_overlap_i if k]
         lst_overlap = lst_overlap+lst_overlap_i
     return lst_overlap

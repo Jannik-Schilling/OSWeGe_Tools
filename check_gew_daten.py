@@ -66,8 +66,9 @@ from .pruefungsroutinen import (
 from .check_gew_report import (
     clean_report_dict,
     create_report_dict,
-    create_layer_from_df,
-    replace_lst_ids
+    create_layers_from_report_dict,
+    replace_lst_ids,
+    save_layer_to_file
 )
 
 class checkGewaesserDaten(QgsProcessingAlgorithm):
@@ -232,6 +233,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         feedback.setProgressText('Abgeschlossen \n ')
         log_time('Vorbereitung')
 
+
+        # Hauptfunktion
         def main_check(key, report_dict, params, feedback, i):
             """
             Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte alle Layer zu pruefen (Attribute + Geometrien)
@@ -394,7 +397,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     report_dict[key]['geometrien']['geom_duplicate'] = df_geom_duplicate
                 log_time((key+'_geom_dup_cro_write'))
             else:
-                if not params['layer_rldl']['check_duplicates_crossings']:  # falls es nicht schon einmal durchlaufen wurde
+                if not params['layer_rldl']['runs']['check_duplicates_crossings']:  # falls es nicht schon einmal durchlaufen wurde
                     layer_rldl = params['layer_rldl']['layer']
                     layer_steps_rldl = 100/layer_rldl.featureCount()
                     df_geom_crossings, df_geom_duplicate = check_duplicates_crossings(
@@ -406,14 +409,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     dict_alternative_id = {
                         feature.id(): feature[params['field_merged_id']] for feature in layer_rldl.getFeatures()
                     }
-                    data_df.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
-                    df_geom_crossings_adjusted = replace_lst_ids(df_geom_crossings, dict_alternative_id)
-                    df_geom_duplicate_adjusted = replace_lst_ids(df_geom_duplicate, dict_alternative_id)
+                    df_geom_crossings_adjusted = df_geom_crossings.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
+                    df_geom_duplicate_adjusted = df_geom_duplicate.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
+
                     if len(df_geom_crossings_adjusted) > 0:
                         report_dict['layer_rldl']['geometrien']['geom_crossings'] = df_geom_crossings_adjusted
                     if len(df_geom_duplicate_adjusted) > 0:
                         report_dict['layer_rldl']['geometrien']['geom_duplicate'] = df_geom_duplicate_adjusted
-                    params['layer_rldl']['check_duplicates_crossings'] = True
+                    params['layer_rldl']['runs']['check_duplicates_crossings'] = True
                     log_time((key+'_geom_dup_cro_rldl_write'))
 
             if key == 'gewaesser':
@@ -477,13 +480,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     layer_temp = params['layer_rldl']['layer']
                     layer_step_temp = 100/layer_temp.featureCount()
                     normal_case = False
-                if normal_case or (not params['layer_rldl']['check_geom_ereign_auf_gew']):  # Falls normal oder noch nicht durchlaufen
+                if normal_case or (not params['layer_rldl']['runs']['check_geom_ereign_auf_gew']):  # Falls normal oder noch nicht durchlaufen
                     feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
                     list_vtx_bericht = []
                     if not normal_case:
                         # Setze den Parameter auf True, damit der Test 
                         # nicht noch einmal mit rldl durchlaufen wird:
-                        params['layer_rldl']['check_geom_ereign_auf_gew'] = True
+                        params['layer_rldl']['runs']['check_geom_ereign_auf_gew'] = True
                     for i, feature in enumerate(layer_temp.getFeatures()):
                         series_vtx_bericht = pd.Series()
                         if feedback.isCanceled():
@@ -521,7 +524,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                     with_stat=True
                                 )
                                 series_vtx_bericht['feature_id'] = feature_id_temp
-                                series_vtx_bericht['geometry'] = geom
+                            series_vtx_bericht['geometry'] = geom
                         list_vtx_bericht = list_vtx_bericht + [series_vtx_bericht]
                     #### TODO sort, so dass geometry hinten ist
                     report_dict[key_temp]['geometrien']['geom_ereign_auf_gew'] = pd.DataFrame(list_vtx_bericht)
@@ -529,12 +532,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
                 # Ueberlappungsanalyse (nur bei Linien)
                 if not layer_temp.geometryType() == QgsWkbTypes.PointGeometry:  
-                    if normal_case or (not params['layer_rldl']['check_overlap_by_stat']):
+                    if normal_case or (not params['layer_rldl']['runs']['check_overlap_by_stat']):
                         feedback.setProgressText('--- Überlappungen')
                         if not normal_case:
                             # Setze den Parameter auf True, damit der Test 
                             # nicht noch einmal mit rldl durchlaufen wird:
-                            params['layer_rldl']['check_overlap_by_stat'] = True
+                            params['layer_rldl']['runs']['check_overlap_by_stat'] = True
                         list_overlap = check_overlap_by_stat(params, report_dict, layer_step_temp)
                         if len(list_overlap) > 0:
                             df_overlap = pd.DataFrame(list_overlap, columns = ['id1', 'id2', 'geometry'])    
@@ -564,14 +567,31 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             + 'Rohrleitungen und Durchlässen'
                         )
                         list_schacht_rldl = []
+                        
+                        # Der DataFrame mit der Lageueberpruefung der Schaechte auf dem Gewaesser
+                        df_schacht_auf_gw = (
+                            report_dict
+                                [key]
+                                ['geometrien']
+                                ['geom_ereign_auf_gew']
+                        )
+
+                        # Nun fuer jeden Schacht pruefen
                         for i, feature in enumerate(layer.getFeatures()):
+                            # Feedback
                             feedback.setProgress(int((i+1) * layer_steps))
                             if feedback.isCanceled():
                                 break
+                            
+                            # Objektgeometrie und ID:
                             geom = feature.geometry()
                             feature_id = feature.id()
+                            
+                            # Multi- oder Leetre Geometrien koennen nicht ueberprueft werden
                             if (not geom) or feature_id in list_geom_is_multi:
                                 continue
+                                
+                            # Die Rohrleitung oder der Durchlass, auf dem der Schacht liegen soll:
                             line_feature = get_line_to_check(geom, other_layer, spatial_index_other)
                             if line_feature:
                                 schacht_auf_rldl = check_vtx_distance(
@@ -580,27 +600,35 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 )
                             else:
                                 schacht_auf_rldl = False
-                            fehler_auf_gew = (
-                                report_dict[key]
-                                    ['geometrien']
-                                    ['geom_ereign_auf_gew']
-                                    [feature_id]
-                                    ['Lage']
-                                )
+                                
+                            
+                            fehler_auf_gew = df_schacht_auf_gw.loc[
+                                df_schacht_auf_gw[
+                                    'feature_id']==feature_id,
+                                    'Lage'
+                            ].values[0]
                             if schacht_auf_rldl and (not fehler_auf_gew):
                                 # korrekt
                                 pass
                             elif (not fehler_auf_gew) and (not schacht_auf_rldl):
                                 # Fehler: schacht auf offenem gewaesser
                                 list_schacht_rldl = list_schacht_rldl + [[feature_id, 1, geom]]
-                            elif (fehler_auf_gew) and schacht_auf_rldl:
+                            elif fehler_auf_gew and schacht_auf_rldl:
                                 # Fehler: rldl verschoben
                                 list_schacht_rldl = list_schacht_rldl + [[feature_id, 2, geom]]
                             else:
                                 # Fehler: schacht weder auf gewaesser noch auf rldl
                                 list_schacht_rldl = list_schacht_rldl + [[feature_id, 3, geom]]
                         log_time((key+'_geom_sch_auf_rldl'))
-                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = pd.DataFrame(list_schacht_rldl, columns = ['feature_id', 'fehler', 'geometry'])
+                        
+                        # Das Ergebnis als DataFrame in report_dict ablegen
+                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = pd.DataFrame(
+                            list_schacht_rldl, columns = [
+                                'feature_id',
+                                'fehler',
+                                'geometry'
+                            ]
+                        )
                         log_time((key+'_geom_sch_auf_rldl_write'))
             feedback.setProgressText('Abgeschlossen \n ')
 
@@ -625,87 +653,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             feedback.setProgressText('Abgeschlossen \n ')
 
         # 2 Ausgabe schreiben
-        import json
         feedback.setProgressText('Schreibe Layer ')
-
-        vector_layer_list = []
-        for layer_key in report_dict.keys():
-            if layer_key == 'Hinweis':
-                continue
-            for rep_section in ['attribute','geometrien']:
-                if not rep_section in report_dict[layer_key].keys():
-                    pass
-                else:
-                    for error_name, error_df in report_dict[layer_key][rep_section].items():
-                        if error_name == 'missing_fields':
-                            feedback.pushWarning(
-                                'Fehlende Felder im '
-                                + layer_key.capitalize()
-                                +'-Layer: '
-                                + ', '.join(error_df)
-                            )
-                        else:
-                            for col in error_df.keys():
-                                if col != 'geometry':
-                                    error_df[col] = [str(f) for f in error_df[col]]
-                            if rep_section == 'attribute':
-                                geom_type = 'NoGeometry'
-                            else:
-                                feature1_geom = error_df.loc[0, 'geometry']
-                                geom_type = feature1_geom.type().name
-                                layer_name = layer_key+'_'+error_name
-                                layer_neu = create_layer_from_df( 
-                                    report_dict[layer_key][rep_section][error_name],
-                                    layer_name,
-                                    geom_type,
-                                    'epsg:5650',
-                                    feedback
-                                )
-                                vector_layer_list = vector_layer_list+[layer_neu]
-                             
-                    
-
-        def save_layer_to_file(
-            vector_layer_list,
-            fname
-        ):
-            # set driver
-            geodata_driver_name = 'GPKG'
-
-            # schreiben layer
-            if os.path.isfile(fname):
-                raise QgsProcessingException('File '+fname
-                + ' already exists. Please choose another folder.')
-            try:
-                for i, v_layer in enumerate(vector_layer_list):
-                    fname_layer = fname
-                    options = QgsVectorFileWriter.SaveVectorOptions()
-                    options.fileEncoding = 'utf-8'
-                    options.driverName = geodata_driver_name
-                    if i > 0:
-                        options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
-                    options.layerName = v_layer.name()
-                    transform_context = QgsProject.instance().transformContext()
-                    a = QgsVectorFileWriter.writeAsVectorFormatV3(
-                        v_layer,
-                        fname_layer,
-                        transform_context,
-                        options
-                    )
-                    print(a)
-            except BaseException:        # for older QGIS versions
-                for v_layer in vector_layer_list:
-                    fname_layer = fname+'|layername='+v_layer.name()
-                    QgsVectorFileWriter.writeAsVectorFormat(
-                        v_layer,
-                        fname_layer,
-                        'utf-8',
-                        v_layer.crs(),
-                        driverName=geodata_driver_name
-                    )
-
+        vector_layer_list = create_layers_from_report_dict(report_dict, feedback)
+        print(vector_layer_list)
         save_layer_to_file(vector_layer_list, reportdatei)        
         log_time('WriteLayer')
+        
         
         
         #print(dict_log)
