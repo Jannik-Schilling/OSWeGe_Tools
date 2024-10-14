@@ -15,3 +15,4 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
   ![abfrage_stationierung](https://github.com/user-attachments/assets/f4a8d121-707b-46d7-bd82-077841d0af92)
 
 - Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
+![grafik](https://github.com/user-attachments/assets/56081717-d560-4613-9006-c525936f942c)
