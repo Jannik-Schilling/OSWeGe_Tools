@@ -21,6 +21,7 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
    - Überschneidungen
    - Lage von Rohrleitungen / Durchlässen / Schächten / Wehren auf Gewässern, sowie Lage von Schächten auf Rohrleitungen oder offenen Gewässern
    - Wasserscheiden und Senken
+     
 ![grafik](https://github.com/user-attachments/assets/b02515e3-ce65-4385-bc8e-62007124517f)
 
    Die Ergebnisse werden als Separate Layer in einer Geopackage-Datei gespeichert
