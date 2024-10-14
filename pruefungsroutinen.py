@@ -191,14 +191,14 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     if len(list_vtx_geom) < len(list_sub_line_vtx_geom):
         sr_vtx_report['Anzahl'] = 2  # zu wenige
 
-        # Lage
-        list_point_on_line = []
-        for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
-            list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
-        if not all(list_point_on_line):
-            sr_vtx_report['Lage'] = 1  # Abweichung
-        else:
-            sr_vtx_report['Lage'] = 0  # Korrekt
+    # Lage
+    list_point_on_line = []
+    for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
+        list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
+    if not all(list_point_on_line):
+        sr_vtx_report['Lage'] = 1  # Abweichung
+    else:
+        sr_vtx_report['Lage'] = 0  # Korrekt
     sr_vtx_report['geometry'] = geom
     return sr_vtx_report
 
@@ -269,9 +269,8 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
 
     # Das Stationierungs-Dict je Gewässer aufbereiten
     dict_stat = {}
-    #print(df_vorher)
-    df_vorher['start'] = [min(lst) for lst in df_vorher['vtx_stat']]
-    df_vorher['stop'] = [max(lst) for lst in df_vorher['vtx_stat']]
+    df_vorher['start'] = [min(lst) if isinstance(lst, list) else -1 for lst in df_vorher['vtx_stat']]
+    df_vorher['stop'] = [max(lst) if isinstance(lst, list) else -1 for lst in df_vorher['vtx_stat']]
     for i in df_vorher.index:
         if feedback.isCanceled():
             break
@@ -290,12 +289,11 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
     # nun fuer jedes gewaesser einmal pruefen
     lst_overlap = []
     for key, lst in dict_stat.items():
-        lst_overlap_i = [ranges_overlap(lst[i], lst[j])
-            for i in range(len(lst))
-            for j in range(i + 1, len(lst))
-        ]
-        #if key == 305:
-        #    print(lst_overlap_i)
+        if len(lst)>1:
+            lst_overlap_i = [ranges_overlap(lst[i], lst[j])
+                for i in range(len(lst))
+                for j in range(i + 1, len(lst))
+            ]
         lst_overlap_i = [k for k in lst_overlap_i if k]
         lst_overlap = lst_overlap+lst_overlap_i
     return lst_overlap

@@ -42,26 +42,33 @@ dict_ereign_fehler = {
         0: 'korrekt',
         1: 'Abweichung',
     },
+    'Richtung':{
+        0: 'korrekt',
+        1: 'verkehrt herum',
+    },
     'Lage_rldl': {
         0: 'korrekt',
         1: 'Schacht auf offenem Gewaesser',
-        2: 'Rohrleitung oder Durchlass verschoben',
-        3: 'Schacht weder auf Gewaesser noch auf RL/DL'
+        2: 'Schacht auf Rohrleitung (RL) / Durchlass (DL), aber RL / DL verschoben',
+        3: 'Schacht weder auf Gewaesser noch auf Rohrleitung / Durchlass'
     }
 }
 
 #
 dict_report_texts = {
-    'missing_fields': 'Fehlende Felder',
-    'primary_key_empty': 'Fehlender Gewässername (Primärschlüssel)',
-    'primary_key_duplicat': 'Doppelter Gewässername (ungültig als Primaerschlüssel)',
-    'gew_key_empty': 'Fehlender Gewässername',
-    'gew_key_invalid': 'Ungültiger Gewässername (im Gewässerlayer nicht vergeben)',
-    'geom_crossings': 'Überschneidung der Linien',
-    'geom_duplicate': 'Identische Geometrien (Duplikate)',
-    'geom_sefintersect': 'Selbstüberschneidung',
+    'missing_fields': 'fehlende Felder',
+    'primary_key_empty': 'fehlender Gewässername (Primärschlüssel)',
+    'primary_key_duplicat': 'doppelter Gewässername (ungültig als Primaerschlüssel)',
+    'gew_key_empty': 'fehlender Gewässername',
+    'gew_key_invalid': 'ungültiger Gewässername (im Gewässerlayer nicht vergeben)',
+    'geom_crossings': 'sich kreuzende Linien',
+    'geom_ereign_auf_gew': 'Lage auf Gewässerlinie',
+    'geom_duplicate': 'identische Geometrien (Duplikate)',
     'geom_is_multi': 'Multigeometrie',
     'geom_is_empty': 'Leere Geometrie',
+    'geom_overlap': 'sich überlappende Linienereignisse (RL / DL)',
+    'geom_sefintersect': 'selbstüberschneidung',
+    'geom_schacht_auf_rldl': 'Lage auf Rohrleitung oder Durchlass',
     'wasserscheiden': 'Alle Linien führen von einander weg (\"Wasserscheide\" ohne Zufluss)',
     'senken': 'Alle Linien führen auf einander zu (\"Senke\" ohne Abfluss)'
 }
