@@ -16,3 +16,7 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
 
 - Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
 ![grafik](https://github.com/user-attachments/assets/56081717-d560-4613-9006-c525936f942c)
+
+## Förderung
+Dieses Plugin wurde/wird entwickelt im Rahmen des [Projekts OSWeGe](https://oswege.auf.uni-rostock.de/), (gefördert durch den BMUV, Förderkennzeichen 67DAS263)
+
