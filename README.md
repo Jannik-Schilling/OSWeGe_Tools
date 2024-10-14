@@ -14,9 +14,16 @@ Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bod
 - Anzeige der Stationierung eines Gewässers (in der Werkeugleiste "Plugins")
   ![abfrage_stationierung](https://github.com/user-attachments/assets/f4a8d121-707b-46d7-bd82-077841d0af92)
 
-- Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
-![grafik](https://github.com/user-attachments/assets/56081717-d560-4613-9006-c525936f942c)
+- Prüfroutine Gewässerlinien (Verarbeitungswerkzeug):   für eine Auswahl an Layern wird geprüft
+   - Korrekt vergebene Attribute, eindeutige Schlüssel (Primary Keys)
+   - leere Geometrien
+   - Duplikate
+   - Überschneidungen
+   - Lage von Rohrleitungen / Durchlässen / Schächten / Wehren auf Gewässern, sowie Lage von Schächten auf Rohrleitungen oder offenen Gewässern
+   - Wasserscheiden und Senken
+![grafik](https://github.com/user-attachments/assets/b02515e3-ce65-4385-bc8e-62007124517f)
 
+   Die Ergebnisse werden als Separate Layer in einer Geopackage-Datei gespeichert
 ![grafik](https://github.com/user-attachments/assets/06891192-8364-4fd8-8918-a92cd533b8d4)
 
 
