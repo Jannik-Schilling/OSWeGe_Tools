@@ -1,13 +1,27 @@
-# dieses script Enthaelt die Funktionen fuer den Report
+# Dieses Pythonskript Enthaelt die Funktionen fuer den Report
 from datetime import datetime
 import copy
+import os
+import pandas as pd
 
 from qgis.core import (
+    NULL,
+    QgsField,
+    QgsFeature,
+    QgsProcessingException,
+    QgsProject,
+    QgsSpatialIndex,
+    QgsWkbTypes,
+    QgsVectorFileWriter,
     QgsVectorLayer,
 )
+
 from qgis.PyQt.QtCore import QVariant
 
-from .defaults import dict_report_texts
+from .defaults import (
+    dict_report_texts,
+    dict_ereign_fehler,
+)
 
 
 def create_report_dict(params, is_test_version=False):
@@ -54,9 +68,9 @@ def create_report_dict(params, is_test_version=False):
             + 'nur die Feature-Ids der fehlerhaften Objekte sowie einen '
             + 'Verweis auf die Fehlerart als (numerischer) Code'
         )
+    list_remove = []
     for key, value in params['layer_dict'].items():
         layer = value['layer']
-        list_remove = []
         if layer:
             # Anzahl Objekte fuer das Feedback
             ft_count = layer.featureCount() if layer.featureCount() else 0
@@ -65,7 +79,11 @@ def create_report_dict(params, is_test_version=False):
                 'count': ft_count,
                 'steps': layer_steps
             })
-            report_dict[key] = {'name': layer.name()}
+            report_dict[key] = {
+                'name': layer.name(),
+                'attribute': {},
+                'geometrien': {}
+            }
         else:
             list_remove.append(key)
     for k in list_remove:
@@ -73,30 +91,97 @@ def create_report_dict(params, is_test_version=False):
     return report_dict
 
 
-def replace_lst_ids(lst, dict_repl):
-    """
-    Ersetzt alle einzelnen id-Nummern in der liste lst anhand von dict_repl;
-    Funktioniert auch bei einer Liste von Listen
-    :param list lst
-    :param dict dict_repl
-    :return: list
-    """
-    new_list = []
-    for elem in lst:
-        if (type(elem)==list) or (type(elem)==tuple):
-            sublist = replace_lst_ids(elem, dict_repl)
-            new_list.append(sublist)
-        else:
-            if elem in dict_repl.keys():
-                new_list.append(dict_repl[elem])
-            else:
-                new_list.append(elem)
-    return new_list
-
-
-
-
 # Aufraeumfunktionen
+def replace_lst_ids(series_i, dict_repl):
+    """
+    Ersetzt alle einzelnen id-Nummern anhand von dict_repl
+    :param pd.Series series_i
+    :param dict dict_repl
+    :return: pd.Series
+    """
+    for col_name, id_val in series_i.items():
+        if id_val in dict_repl.keys():
+            series_i[col_name] = dict_repl[id_val]
+        else:
+            pass
+    return series_i
+
+
+def listcol_to_str (df, column_name):
+    """
+    Fuegt in df in einer Spalte die Listen zu Strings zusammen
+    :param pd.DataFrame df
+    :param str column_name
+    :return: pd.DataFrame
+    """
+    def join_list_items(x):
+        if isinstance(x, list):
+            return ', '.join(map(str, x))
+        else:
+            return str(x) 
+    
+    df[column_name] = df[column_name].apply(join_list_items)
+    return df
+    
+    
+def delete_column_if_exists(df, column_names):
+    """
+    Loescht Spalten, falls vorhanden
+    :param pd.DataFrame df
+    :param list column_names 
+    :return: pd.DataFramee
+    """
+    columns_to_delete = [col for col in column_names if col in df.columns]
+    if columns_to_delete:
+        df = df.drop(columns=columns_to_delete)
+    return df
+
+def delete_rows_with_zero(df, column_names):
+    """
+    Loescht Zeilen, wenn die Werte in den Spalten column_names 0 sind
+    :param pd.DataFrame df
+    :param list column_names 
+    :return: pd.DataFrame
+    """
+    mask = (df[column_names] == 0).all(axis=1)
+    df_filtered = df[~mask]
+    df_filtered.reset_index(drop=True, inplace=True)
+    return df_filtered
+
+def replace_values_with_strings(df, replace_dict):
+    """
+    Ersetzt die Werte anhand des dictionarys
+    :param pd.DataFrame df
+    :param dict replace_dict
+    :return: pd.DataFrame
+    """
+    for column, replace_dict_i in replace_dict.items():
+        if column in df.columns:
+            df[column] = df[column].replace(replace_dict_i)
+    return df
+    
+def replace_report_dict_keys(report_dict, replacement_dict):
+    """
+    Ersetzt die keys auf der dritten Ebene des report dicts mit neuen keys ("in place")
+    :param dict replace_dict
+    :param dict report_dict
+    """
+    for layer_key in report_dict.keys():
+        if layer_key == 'Hinweis':
+            continue
+        for error_type in report_dict[layer_key].keys():
+            if error_type == 'name':
+                pass
+            else:
+                try:
+                    occuring_error_names = list(report_dict[layer_key][error_type].keys())
+                except:
+                    print(eport_dict[layer_key][error_type])
+                for error_name in occuring_error_names:
+                    if error_name in replacement_dict:
+                        report_dict[layer_key][error_type][replacement_dict[error_name]] = report_dict[layer_key][error_type].pop(error_name)
+    
+    
 def clean_report_dict(report_dict, feedback):
     """
     Loescht leere Listen und Dicts im report_dict
@@ -105,6 +190,7 @@ def clean_report_dict(report_dict, feedback):
     """
     step_temp = 100/len(report_dict)
     for i, key in enumerate(report_dict.keys()):
+        # Ausnahmen und feedback
         if feedback.isCanceled():
             break
         if key == 'Hinweis':
@@ -115,103 +201,234 @@ def clean_report_dict(report_dict, feedback):
                 pass
             else:
                 if rep_section == 'geometrien':
-                    # Spezialroutine fuer die Dicts
-                    if 'geom_ereign_auf_gew' in report_dict[key]['geometrien'].keys():
-                        report_dict[key]['geometrien']['geom_ereign_auf_gew'] = {
-                            elem_id: clean_ereign_auf(
-                                dict_i
-                            ) for elem_id, dict_i in report_dict[key]['geometrien']['geom_ereign_auf_gew'].items() if clean_ereign_auf(dict_i)
-                        }
-                    if 'geom_schacht_auf_rldl' in report_dict[key]['geometrien'].keys():
-                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = {
-                            elem_id: value for elem_id, value in report_dict[key]['geometrien']['geom_schacht_auf_rldl'].items() if value
-                        }
+                    if key == 'gewaesser':
+                        for error_name in ['wasserscheiden', 'senken']:
+                            if error_name in report_dict[key][rep_section].keys():
+                                df = report_dict[key][rep_section][error_name]
+                                # Listen durch Strings ersetzen
+                                df2 = listcol_to_str (df, 'feature_id')
+                                report_dict[key][rep_section][error_name] = df2
+
+                    if key in ['rohrleitungen', 'durchlaesse', 'layer_rldl']:
+                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
+                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
+                            # Unbenoetige Spalten loeschen
+                            df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
+                            # Unbenoetige Zeilen loeschen
+                            df3 = delete_rows_with_zero(df2, ['Anzahl','Lage','Richtung'])
+                            # Fehlercodes mit Text ersetzen
+                            df4 = replace_values_with_strings(df3, dict_ereign_fehler)
+                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df4
+
+                    if key in ['schaechte', 'wehre']:
+                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
+                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
+                            # Unbenoetige Zeilen loeschen
+                            df2 = delete_rows_with_zero(df, ['Lage'])
+                            # Fehlercodes mit Text ersetzen
+                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
+                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df3
+                        if 'geom_schacht_auf_rldl' in report_dict[key][rep_section].keys():
+                            df = report_dict[key][rep_section]['geom_schacht_auf_rldl']
+                            # Unbenoetige Zeilen loeschen
+                            df2 = delete_rows_with_zero(df, ['Lage_rldl'])
+                            # Fehlercodes mit Text ersetzen
+                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
+                            report_dict[key][rep_section]['geom_schacht_auf_rldl'] = df3
+                            
                 report_dict[key][rep_section] = {
                     sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
                 }
                 if len(report_dict[key][rep_section]) == 0:
                     del report_dict[key][rep_section]
+    # Fehlernamen ersetzen
+    replace_report_dict_keys(report_dict, dict_report_texts)
 
-def clean_ereign_auf(dict_i):
+# Layererstellung
+def create_feature_from_attrlist(
+    attrlist,
+    geom_type,
+    f_geometry=NULL
+):
     """
-    Bereinigt die Unterabschnitte 'geom_ereign_auf_gew', 'geom_schacht_auf_rldl' im report_dict
-    :param dict dict_i
+    creates a QgsFeature from with attributes in a list
+    :param list attrlist
+    :param str geom_type
+    :param QgsGeometry geometry
+    :return: QgsFeature
     """
-    del_log_list = [1,1,1]  # 0, wenn eines nicht geaendert wird
-    dct_i_copy = copy.deepcopy(dict_i)
-    if 'Lage' in dct_i_copy.keys():
-        if dct_i_copy['Lage'] == 0:
-            del dct_i_copy['Lage']
-        else:
-            del_log_list[0] = 0
-    if 'Richtung' in dct_i_copy.keys():
-        if dct_i_copy['Richtung'] == 0:
-            del dct_i_copy['Richtung']
-        else:
-            del_log_list[1] = 0
-    if 'Anzahl' in dct_i_copy.keys():
-        if dct_i_copy['Anzahl'] == 0:
-            del dct_i_copy['Anzahl']
-        else: 
-            del_log_list[2] =0
-    if all(del_log_list):
-        return
+    f = QgsFeature()
+    if geom_type != 'NoGeometry':
+        try:
+            f.setGeometry(f_geometry)
+        except:
+            print(f_geometry)
+    f.setAttributes(attrlist)
+    return f
+
+def create_feature_from_row(df_i, geom_type):
+    """
+    creates a QgsFeature from data in df
+    :param pd.DataFrame df_i
+    :param str geom_type
+    """
+    if 'geometry' in df_i.keys():
+        f_geometry = df_i['geometry']
+        attrlist = df_i.drop('geometry').tolist()
+        return create_feature_from_attrlist(
+            attrlist,
+            geom_type,
+            f_geometry
+        )
     else:
-        if 'gew_id' in dct_i_copy.keys():
-            del dct_i_copy['gew_id']
-        if 'vtx_stat' in dct_i_copy.keys():
-            del dct_i_copy['vtx_stat']
-        return dct_i_copy
+        attrlist = df_i.tolist()
+        return create_feature_from_attrlist(
+            attrlist,
+            geom_type
+        )
 
 
-
-# Funktionen fuer die Layerausgabe
-def write_report_layer(layer_typ):
+def create_layer_from_df(
+    data_df,
+    layer_name,
+    geom_type,
+    crs_result,
+    feedback,
+):
     """
-    :param str layer_typ
-    :return: QgsVectorLayer
+    creates a QgsVectorLayer from data in geodata_dict
+    :param pd.DataFrame data_df: [attr1, attr2,..., (geometry)]
+    :param str layer_name
+    :param str geom_type
+    :param str crs_result: epsg code of the desired CRS
+    :param QgsProcessingFeedback feedback
     """
-    geom_type = 'NoGeometry'  # einfache Tabellen
-    vector_layer = QgsVectorLayer(geom_type, layer_typ, 'memory')  # layer_typ wird der name
+
+    if 'geometry' in data_df.keys():
+        layer_fields = [f for f in data_df.keys() if not f=='geometry']
+        geom_type = geom_type+'?crs='+crs_result
+    else:  
+        # No Geometry
+        layer_fields = data_df.keys()
+    
+    # leeren Layer generieren
+    vector_layer = QgsVectorLayer(
+        geom_type,
+        layer_name,
+        'memory'
+    )
     vector_layer.startEditing()
-    column_name = 'test'
-    if not column_name in vector_layer.fields().names():
-        field_type = field_types_dict[field_type_string]
+    for  column_name in layer_fields:
         # QgsField is deprecated since QGIS 3.38 -> QMetaType
-        vector_layer.addAttribute(QgsField(colum_name, QVariant.Int))
+        vector_layer.addAttribute(QgsField(column_name, QVariant.String))
     vector_layer.updateFields()
-    # Layer anlegen: 
-        # wenn Spalte nicht vorhanden: anlegen
 
-    # Objekt: 
-    feature_list = []
-    ft = QgsFeature()
-    attrlist = [1]
-    ft.setAttributes(attrlist)
-    feature_list.append(ft)
+    # Objekte 
+    feature_list = data_df.apply(
+        lambda x: create_feature_from_row(
+            x,
+            geom_type
+        ),
+        axis=1  # auf jede Zeile anwenden
+    )
     vector_layer.addFeatures(feature_list)
     vector_layer.updateExtents()
     vector_layer.commitChanges()
-        # wenn nicht vorhanden: anlegen
-        # Fehler als dict mit Spaltennamen:
-            # wenn Liste, dann einfacher Eintrag
-            # wenn dict, dann in default nachsehen
-            
-        
-def add_rldl_to_layer(layer):
-    """
-    :param QgsVectorLayer layer
-    :return: QgsVectorLayer
-    """
-    pass
-    # einmal für rl einmal für dl
-    # neue spalten anlegen
-    # geom_crossing und geom_overlap: 
-        # mit for ... wenn beider größer als id, continue
-        # split bei ': ' -> layer, id
-        # wenn schon da, dann crossing hinzu, sonst
-        # 'Überschneidung mit'
-    # geom_ereig_auf_gew:
-        # wie oben mit dict
+    return vector_layer
     
     
+def create_layers_from_report_dict(report_dict, feedback):
+    '''
+    Generiert für alle Geometrie-Einträge einen Layer
+    :param dict report_dict
+    :param QgsProcessingFeedback feedback 
+    :return: list vector_layer_list
+    :return: list list_messages
+    '''
+    vector_layer_list = []
+    list_messages = []
+    for layer_key in report_dict.keys():
+        if layer_key == 'Hinweis':
+            continue
+        for rep_section in ['attribute','geometrien']:
+            if not rep_section in report_dict[layer_key].keys():
+                pass
+            else:
+                for error_name, error_df in report_dict[layer_key][rep_section].items():
+                    layer_name = layer_key+': '+error_name
+                    feedback.setProgressText(layer_name)
+                    if error_name in ['missing_fields', 'fehlende Felder']:
+                        list_messages.append(
+                            'Fehlende Felder im '
+                            + layer_key.capitalize()
+                            +'-Layer: '
+                            + ', '.join(error_df)
+                        )
+                    else:
+                        if not isinstance(error_df, pd.DataFrame):
+                            pass  # sollte eigentlich nicht vorkommen
+                        else:
+                            for col in error_df.keys():
+                                if col != 'geometry':
+                                    error_df[col] = [str(f) for f in error_df[col]]
+                            if (rep_section == 'attribute') or (not 'geometry' in error_df.keys()):
+                                geom_type = 'NoGeometry'
+                            else:
+                                feature1_geom = error_df.loc[0, 'geometry']
+                                geom_type = feature1_geom.type().name
+                                if geom_type == 'Line':
+                                     geom_type = 'LineString'
+                            layer_neu = create_layer_from_df( 
+                                report_dict[layer_key][rep_section][error_name],
+                                layer_name,
+                                geom_type,
+                                'epsg:5650',
+                                feedback
+                            )
+                            vector_layer_list = vector_layer_list+[layer_neu]
+    return vector_layer_list, list_messages
+    
+    
+    
+def save_layer_to_file(
+    vector_layer_list,
+    fname
+):
+    """
+    Schreibt alle Layer in der list in ein Geopackage
+    :param list vector_layer_list: Layerliste
+    :param str fname: Speicherpfad
+    """
+    # "Treiber"
+    geodata_driver_name = 'GPKG'
+
+    # Alle Layer aus der Liste in Datei schreiben, falls die Datei nicht schon existiert
+    if os.path.isfile(fname):
+        raise QgsProcessingException('File '+fname
+        + ' already exists. Please choose another folder.')
+    try:
+        for i, v_layer in enumerate(vector_layer_list):
+            fname_layer = fname
+            options = QgsVectorFileWriter.SaveVectorOptions()
+            options.fileEncoding = 'utf-8'
+            options.driverName = geodata_driver_name
+            if i > 0:
+                options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
+            options.layerName = v_layer.name()
+            transform_context = QgsProject.instance().transformContext()
+            a = QgsVectorFileWriter.writeAsVectorFormatV3(
+                v_layer,
+                fname_layer,
+                transform_context,
+                options
+            )
+    except BaseException:        # for older QGIS versions
+        for v_layer in vector_layer_list:
+            fname_layer = fname+'|layername='+v_layer.name()
+            QgsVectorFileWriter.writeAsVectorFormat(
+                v_layer,
+                fname_layer,
+                'utf-8',
+                v_layer.crs(),
+                driverName=geodata_driver_name
+            )

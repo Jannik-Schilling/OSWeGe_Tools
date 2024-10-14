@@ -1,6 +1,22 @@
-import urllib.request
+import time
 
+# Zeitlogger
+dict_log = {}
+def log_time(stepname, is_start=False):
+    """
+    Schreibt die Zeiten der einzelnen Schritte mit
+    :param str stepname
+    :param bool is_start
+    """
+    if is_start:
+        dict_log['current'] = time.time()
+    last_time = dict_log['current']
+    dict_log[stepname] = round(time.time() - last_time,2)
+    dict_log['current'] = time.time()
+
+# Aktuell nicht im Einsatz, weil instabil (Internetverbindung)
 def get_metadata(file_path, lokal=True):
+    import urllib.request
     if lokal:
         with open(file_path, 'r') as f:
             text = f.readlines()
