@@ -134,14 +134,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             QgsProcessingParameterFileDestination(
                 self.REPORT,
                 self.tr('Reportdatei'),
-                'Json File (*.json)'                #'Textdatei (*.txt)',
+                'Geopackage (*.gpkg)'                #'Textdatei (*.txt)',
             )
         )
         
         self.addOutput(
             QgsProcessingOutputFile(
                 self.REPORT_OUT,
-                self.tr('Reportdatei: Json File(*.json)')
+                self.tr('Reportdatei: Geopackage File(*.gpkg)')
             )
         ) 
 
@@ -457,9 +457,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 )
                 log_time((key+'_geom_wassersc'))
                 if len(list_geom_wassersch) > 0:
-                    report_dict[key]['geometrien']['wasserscheiden'] = pd.DataFrame(list_geom_wassersch, columns = ['id','geometry'])
+                    report_dict[key]['geometrien']['wasserscheiden'] = pd.DataFrame(list_geom_wassersch, columns = ['feature_id','geometry'])
                 if len(list_geom_wassersch) > 0:
-                    report_dict[key]['geometrien']['senken'] = pd.DataFrame(list_geom_senken, columns = ['id','geometry'])
+                    report_dict[key]['geometrien']['senken'] = pd.DataFrame(list_geom_senken, columns = ['feature_id','geometry'])
                 log_time((key+'_geom_wassersc_write'))
 
             else:  # Ereignisse
@@ -501,7 +501,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         else:
                             #Linie / Punkt auf Gewaesserlinie ?
                             if layer_temp.geometryType() == QgsWkbTypes.PointGeometry:  # Point
-                                series_vtx_bericht['id'] = feature_id_temp
+                                series_vtx_bericht['feature_id'] = feature_id_temp
                                 line_feature = get_line_to_check(geom, layer_gew, spatial_index_other)
                                 if line_feature:
                                     if not check_vtx_distance(geom, line_feature.geometry()):
@@ -520,7 +520,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                     spatial_index_other,
                                     with_stat=True
                                 )
-                                series_vtx_bericht['id'] = feature_id_temp
+                                series_vtx_bericht['feature_id'] = feature_id_temp
                                 series_vtx_bericht['geometry'] = geom
                         list_vtx_bericht = list_vtx_bericht + [series_vtx_bericht]
                     #### TODO sort, so dass geometry hinten ist
@@ -600,7 +600,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 # Fehler: schacht weder auf gewaesser noch auf rldl
                                 list_schacht_rldl = list_schacht_rldl + [[feature_id, 3, geom]]
                         log_time((key+'_geom_sch_auf_rldl'))
-                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = pd.DataFrame(list_schacht_rldl, columns = ['id', 'fehler', 'geometry'])
+                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = pd.DataFrame(list_schacht_rldl, columns = ['feature_id', 'fehler', 'geometry'])
                         log_time((key+'_geom_sch_auf_rldl_write'))
             feedback.setProgressText('Abgeschlossen \n ')
 
@@ -628,57 +628,86 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         import json
         feedback.setProgressText('Schreibe Layer ')
 
+        vector_layer_list = []
+        for layer_key in report_dict.keys():
+            if layer_key == 'Hinweis':
+                continue
+            for rep_section in ['attribute','geometrien']:
+                if not rep_section in report_dict[layer_key].keys():
+                    pass
+                else:
+                    for error_name, error_df in report_dict[layer_key][rep_section].items():
+                        if error_name == 'missing_fields':
+                            feedback.pushWarning(
+                                'Fehlende Felder im '
+                                + layer_key.capitalize()
+                                +'-Layer: '
+                                + ', '.join(error_df)
+                            )
+                        else:
+                            for col in error_df.keys():
+                                if col != 'geometry':
+                                    error_df[col] = [str(f) for f in error_df[col]]
+                            if rep_section == 'attribute':
+                                geom_type = 'NoGeometry'
+                            else:
+                                feature1_geom = error_df.loc[0, 'geometry']
+                                geom_type = feature1_geom.type().name
+                                layer_name = layer_key+'_'+error_name
+                                layer_neu = create_layer_from_df( 
+                                    report_dict[layer_key][rep_section][error_name],
+                                    layer_name,
+                                    geom_type,
+                                    'epsg:5650',
+                                    feedback
+                                )
+                                vector_layer_list = vector_layer_list+[layer_neu]
+                             
+                    
 
-
-        layer_neu = create_layer_from_df( 
-            report_dict['gewaesser']['geometrien']['geom_crossings'],
-            'gewaesser_crossings',
-            'Point',
-            'epsg:5650',
-            feedback
-        )
-        
         def save_layer_to_file(
             vector_layer_list,
             fname
         ):
             # set driver
             geodata_driver_name = 'GPKG'
-            print(vector_layer_list)
 
-            # create layer
+            # schreiben layer
             if os.path.isfile(fname):
                 raise QgsProcessingException('File '+fname
                 + ' already exists. Please choose another folder.')
             try:
-                for v_layer in vector_layer_list:
-                    print('b')
+                for i, v_layer in enumerate(vector_layer_list):
+                    fname_layer = fname
                     options = QgsVectorFileWriter.SaveVectorOptions()
                     options.fileEncoding = 'utf-8'
                     options.driverName = geodata_driver_name
-                    options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
+                    if i > 0:
+                        options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
                     options.layerName = v_layer.name()
                     transform_context = QgsProject.instance().transformContext()
-                    QgsVectorFileWriter.writeAsVectorFormatV3(
+                    a = QgsVectorFileWriter.writeAsVectorFormatV3(
                         v_layer,
-                        fname,
+                        fname_layer,
                         transform_context,
                         options
                     )
+                    print(a)
             except BaseException:        # for older QGIS versions
                 for v_layer in vector_layer_list:
-                    print('a')
+                    fname_layer = fname+'|layername='+v_layer.name()
                     QgsVectorFileWriter.writeAsVectorFormat(
                         v_layer,
-                        fname,
+                        fname_layer,
                         'utf-8',
                         v_layer.crs(),
                         driverName=geodata_driver_name
                     )
+
+        save_layer_to_file(vector_layer_list, reportdatei)        
+        log_time('WriteLayer')
         
-        save_layer_to_file([layer_neu], '/home/jannik/Dokumente/projects_qgis/dev/test.gpkg')
         
-        log_time('JSON')
         #print(dict_log)
         return {self.REPORT_OUT: reportdatei} 
 

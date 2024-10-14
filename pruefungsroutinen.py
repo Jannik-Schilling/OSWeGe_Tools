@@ -88,7 +88,7 @@ def check_duplicates_crossings(
             continue
         if geom.type() == 0:  # Point
             intersecting_ids = spatial_index.intersects(geom.boundingBox().buffered(0.2))
-            column_names = ['id', 'geometry']
+            column_names = ['feature_id', 'geometry']
         else:
             intersecting_ids = spatial_index.intersects(geom.boundingBox())
             column_names = ['id1', 'id2', 'geometry']
@@ -277,7 +277,7 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
             break
         elem = df_vorher.loc[i,:]
         gew_id = elem['gew_id']
-        feature_id = elem['id']
+        feature_id = elem['feature_id']
         start = elem['start']
         stop = elem['stop']
         geom = elem['geometry']
