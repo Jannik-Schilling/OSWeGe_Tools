@@ -84,14 +84,13 @@ def check_duplicates_crossings(
             break
         geom = feature.geometry()
         feature_id = feature.id()
-        if geom.isEmpty():
+        if geom.isEmpty() or geom.isNull():
             continue
         if geom.type() == 0:  # Point
             intersecting_ids = spatial_index.intersects(geom.boundingBox().buffered(0.2))
-            column_names = ['feature_id', 'geometry']
         else:
             intersecting_ids = spatial_index.intersects(geom.boundingBox())
-            column_names = ['id1', 'id2', 'geometry']
+        column_names = ['id1', 'id2', 'geometry']
         for fid in intersecting_ids:
             if feedback.isCanceled():
                 break
@@ -113,6 +112,7 @@ def check_duplicates_crossings(
                     intersection_point = geom.intersection(other_geom)
                     list_geom_crossings.append(list(group_i)+[intersection_point])
                     visited_groups_crossings.add(group_i)
+    print(list_geom_crossings)
     df_geom_crossings = pd.DataFrame(list_geom_crossings, columns = column_names)
     df_geom_duplicate = pd.DataFrame(list_geom_duplicate, columns = column_names)
     return df_geom_crossings, df_geom_duplicate
@@ -289,13 +289,13 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
     # nun fuer jedes gewaesser einmal pruefen
     lst_overlap = []
     for key, lst in dict_stat.items():
-        if len(lst)>1:
+        if len(lst) > 1:
             lst_overlap_i = [ranges_overlap(lst[i], lst[j])
                 for i in range(len(lst))
                 for j in range(i + 1, len(lst))
             ]
-        lst_overlap_i = [k for k in lst_overlap_i if k]
-        lst_overlap = lst_overlap+lst_overlap_i
+            lst_overlap_i = [k for k in lst_overlap_i if k]
+            lst_overlap = lst_overlap+lst_overlap_i
     return lst_overlap
 
 def ranges_overlap(range1, range2):

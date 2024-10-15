@@ -68,26 +68,20 @@ def create_report_dict(params, is_test_version=False):
             + 'nur die Feature-Ids der fehlerhaften Objekte sowie einen '
             + 'Verweis auf die Fehlerart als (numerischer) Code'
         )
-    list_remove = []
     for key, value in params['layer_dict'].items():
         layer = value['layer']
-        if layer:
-            # Anzahl Objekte fuer das Feedback
-            ft_count = layer.featureCount() if layer.featureCount() else 0
-            layer_steps = 100.0/ft_count if ft_count != 0 else 0
-            params['layer_dict'][key].update({
-                'count': ft_count,
-                'steps': layer_steps
-            })
-            report_dict[key] = {
-                'name': layer.name(),
-                'attribute': {},
-                'geometrien': {}
-            }
-        else:
-            list_remove.append(key)
-    for k in list_remove:
-        del(params['layer_dict'][k])
+        # Anzahl Objekte fuer das Feedback
+        ft_count = layer.featureCount() if layer.featureCount() else 0
+        layer_steps = 100.0/ft_count if ft_count != 0 else 0
+        params['layer_dict'][key].update({
+            'count': ft_count,
+            'steps': layer_steps
+        })
+        report_dict[key] = {
+            'name': layer.name(),
+            'attribute': {},
+            'geometrien': {}
+        }
     return report_dict
 
 
@@ -335,12 +329,13 @@ def create_layer_from_df(
     vector_layer.updateExtents()
     vector_layer.commitChanges()
     return vector_layer
-    
-    
-def create_layers_from_report_dict(report_dict, feedback):
+
+
+def create_layers_from_report_dict(report_dict, crs_out, feedback):
     '''
     Generiert für alle Geometrie-Einträge einen Layer
     :param dict report_dict
+    :param str crs_out
     :param QgsProcessingFeedback feedback 
     :return: list vector_layer_list
     :return: list list_messages
@@ -382,7 +377,7 @@ def create_layers_from_report_dict(report_dict, feedback):
                                 report_dict[layer_key][rep_section][error_name],
                                 layer_name,
                                 geom_type,
-                                'epsg:5650',
+                                crs_out,
                                 feedback
                             )
                             vector_layer_list = vector_layer_list+[layer_neu]

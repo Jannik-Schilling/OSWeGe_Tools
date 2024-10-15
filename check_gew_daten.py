@@ -167,14 +167,34 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
+        feedback.setProgressText('Vorbereitung der Tests')
+        layer_dict = {}
+        list_crs = []
+        for layer_typ, layer in zip(
+            [
+                'gewaesser',
+                'rohrleitungen',
+                'durchlaesse',
+                'wehre',
+                'schaechte'
+            ],[
+                layer_gew,
+                layer_rohrleitungen,
+                layer_durchlaesse,
+                layer_wehre,
+                layer_schaechte,
+            ]
+        ):
+            if layer:
+                list_crs.append(layer.crs().authid())
+                layer_dict[layer_typ] = {'layer': layer}
+        if len(set(list_crs)) == 1:
+            crs_out = list_crs[0]  # fuer die Ergebnisausgabe
+        else:
+            raise QgsProcessingException('Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!')
+
         params = {
-            'layer_dict': {
-                'gewaesser': {'layer': layer_gew},
-                'rohrleitungen': {'layer': layer_rohrleitungen},
-                'durchlaesse': {'layer': layer_durchlaesse},
-                'wehre': {'layer': layer_wehre},
-                'schaechte': {'layer': layer_schaechte},
-            },
+            'layer_dict': layer_dict,
             'feedback': feedback,
             'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # gu_cd, ba_cd
             'field_merged_id': 'merged_id',
@@ -183,7 +203,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # dictionary fuer Feedback / Fehlermeldungen
         log_time('Zusammenfassen', is_start=True)
-        feedback.setProgressText('Vorbereitung der Tests')
         report_dict = create_report_dict(params, is_test_version)
 
         # Anzahl der zu bearbeitenden Layer
@@ -360,7 +379,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 if feedback.isCanceled():
                     break
                 geom = feature.geometry()
-                if geom.isEmpty():
+                if geom.isEmpty() or geom.isNull():
                     # Leer?
                     list_geom_is_empty.append(feature.id())
                 else:
@@ -669,7 +688,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # 2 Ausgabe schreiben
         feedback.setProgressText('Generiere Layer')
-        vector_layer_list, list_messages = create_layers_from_report_dict(report_dict, feedback)
+        vector_layer_list, list_messages = create_layers_from_report_dict(report_dict, crs_out, feedback)
         feedback.setProgressText('Abgeschlossen \n ')
         
         feedback.setProgressText('Speichere Layer in Datei')

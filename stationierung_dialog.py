@@ -273,14 +273,26 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         df = pd.DataFrame(l, columns=['id', 'dist'])
         df = df.sort_values('dist', ignore_index=True)
         df = df.loc[df['dist'] >= 0]  # -1 wird bei NULL-geometrien gesetzt
+        droplist = [] # damit leere geometrien rausgeworfen werden
+        for i in df.index:
+            id_i = df.loc[i,'id']
+            geom_i = self.gew_layer.getFeature(id_i).geometry()
+            if geom_i.isEmpty():
+                droplist.append(i)
+            if geom_i.isNull():
+                droplist.append(i)
+        droplist = list(set(droplist))
+        df = df.drop(droplist)
         df2 = df.loc[df['dist'] < findGew_tolerance_dist]
         if len(df2) > 0:
-            pass
-            #dist_show = False
+            pass  # ok
         else:
             # falls alle zu weit weg sind (weiter als findGew_tolerance_dist)
             df2 = df.head(1)
             #dist_show = True
+        if len(df2) == 0:
+            # falls alle leer oder NULL
+            pass
         self.show_text = ''
         for i in df2.index:
             clicked_gew_ft_id = df2.loc[i,'id']
