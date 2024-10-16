@@ -547,7 +547,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                         series_vtx_bericht['Lage'] = 0  # hier später noch die Stationierung
                                 else:
                                     # kein Gewaesser in der Naehe gefunden
-                                    series_vtx_bericht['Lage'] = 2
+                                    series_vtx_bericht['Lage'] = 1
                             else:  # Line
                                 series_vtx_bericht = check_geom_on_line(
                                     geom,
