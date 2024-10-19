@@ -193,10 +193,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         else:
             raise QgsProcessingException('Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!')
 
+        # Dictionary fuer immer wiederkehrende Parameter
         params = {
             'layer_dict': layer_dict,
             'feedback': feedback,
             'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # gu_cd, ba_cd
+            'gew_primary_key_missing': False,
             'field_merged_id': 'merged_id',
             'emptystrdef': [NULL, ''],  # mögliche "Leer"-Definitionen für Zeichketten
         }
@@ -213,33 +215,38 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         if layer_rohrleitungen and layer_durchlaesse:
             # neues Feld "rldl_id" mit dem Layername und der id() des Objekts,
             # weil sich die id() beim Vereinigen der Layer aendert
-            rl_mit_id = processing.run("native:fieldcalculator", {
-                'INPUT': params['layer_dict']['rohrleitungen']['layer'],
-                'FIELD_NAME': params['field_merged_id'],
-                'FIELD_TYPE': 2,
-                'FORMULA': "concat(@layer_name,': ',$id)",
-                'OUTPUT': 'memory:'
-            }) ['OUTPUT']
-            dl_mit_id = processing.run("native:fieldcalculator", {
-                'INPUT': params['layer_dict']['durchlaesse']['layer'],
-                'FIELD_NAME': params['field_merged_id'],
-                'FIELD_TYPE': 2,
-                'FORMULA': "concat(@layer_name,': ',$id)",
-                'OUTPUT': 'memory:'
-            })['OUTPUT']
-            list_r_layer = [rl_mit_id, dl_mit_id]
-            
+            rl_mit_id = processing.run(
+                "native:fieldcalculator", {
+                    'INPUT': params['layer_dict']['rohrleitungen']['layer'],
+                    'FIELD_NAME': params['field_merged_id'],
+                    'FIELD_TYPE': 2,
+                    'FORMULA': "concat(@layer_name,': ',$id)",
+                    'OUTPUT': 'memory:'
+                }
+            )['OUTPUT']
+            dl_mit_id = processing.run(
+                "native:fieldcalculator", {
+                    'INPUT': params['layer_dict']['durchlaesse']['layer'],
+                    'FIELD_NAME': params['field_merged_id'],
+                    'FIELD_TYPE': 2,
+                    'FORMULA': "concat(@layer_name,': ',$id)",
+                    'OUTPUT': 'memory:'
+                }
+            )['OUTPUT']
+
             # Vereinigen der layer rl und dl für Überschneidungsanalyse
             layer_rldl = processing.run(
                 "native:mergevectorlayers",
                 {
-                    'LAYERS':list_r_layer,
+                    'LAYERS': [rl_mit_id, dl_mit_id],
                     'OUTPUT':'memory:'
                 }
             )['OUTPUT']
+            
+            # Zu Params: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
             params['layer_rldl'] = {
                 'layer': layer_rldl,
-                'runs': {  # zeigt an, ob die Pruefroutinen des Layers schon durchlaufen wurden
+                'runs': {  
                     'check_duplicates_crossings': False,  
                     'check_geom_ereign_auf_gew': False,
                     'check_overlap_by_stat': False
@@ -281,12 +288,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             missing_fields = [
                 feld for feld in pflichtfelder_i if not feld in layer_i_felder
             ]
+            ereign_gew_id_field = params['ereign_gew_id_field']
             if len(missing_fields) > 0:
                 report_dict[key]['attribute']['missing_fields'] = missing_fields
+                if key == 'gewaesser' and ereign_gew_id_field in missing_fields:
+                    params['gew_primary_key_missing'] = True
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
-            ereign_gew_id_field = params['ereign_gew_id_field']
             if ereign_gew_id_field in missing_fields:
                 feedback.setProgressText(
                    'Feld \"'
@@ -330,11 +339,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     list_gew_key_empty = []
                     list_gew_key_invalid = []
                     layer_gew = params['layer_dict']['gewaesser']['layer']
-                    if ereign_gew_id_field in (
-                        report_dict['gewaesser']
-                            ['attribute']
-                            ['missing_fields']
-                        ):
+                    if params['gew_primary_key_missing']:
                         feedback.setProgressText(
                             'Die Zuordnung zum Gewässer kann '
                             + 'nicht geprueft werden, weil das Feld \"'
@@ -353,7 +358,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 list_gew_key_empty.append(feature.id())
                             else:
                                 if not ft_key in list_gew_keys:
-                                    # Der angegebene Gewaesserschluessel(=Gewaessername) ist nicht im Gewaesserlayer vergeben
+                                    # Der angegebene Gewaesserschluessel(=Gewaessername)
+                                    # ist nicht im Gewaesserlayer vergeben
                                     list_gew_key_invalid.append(feature.id())
                         log_time((key+'_Attr'))
                         if len(list_gew_key_empty) > 0:

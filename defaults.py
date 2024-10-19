@@ -72,3 +72,43 @@ dict_report_texts = {
     'wasserscheiden': 'Alle Linien führen von einander weg (\"Wasserscheide\" ohne Zufluss)',
     'senken': 'Alle Linien führen auf einander zu (\"Senke\" ohne Abfluss)'
 }
+
+
+default_typical_geoms = {
+    'schaechte': 'Point',
+    'wehre': 'Point',
+    'rohrleitungen' : 'LineString',
+    'durchlaesse' : 'LineString',
+    'layer_rldl': 'LineString',
+}
+
+default_report_geoms = {
+    'missing_fields': 'NoGeometry',
+    'primary_key_empty': 'NoGeometry',
+    'primary_key_duplicat': 'NoGeometry',
+    'gew_key_empty': 'NoGeometry',
+    'gew_key_invalid': 'NoGeometry',
+    'geom_crossings': 'Point',
+    'geom_ereign_auf_gew': default_typical_geoms,
+    'geom_duplicate': default_typical_geoms,
+    'geom_is_multi': 'NoGeometry',
+    'geom_is_empty': 'NoGeometry',
+    'geom_overlap': 'LineString',
+    'geom_sefintersect': default_typical_geoms,
+    'geom_schacht_auf_rldl': 'Point',
+    'wasserscheiden': 'Point',
+    'senken': 'Point',
+}
+
+def get_geom_type(error_name_long, layer_key=None):
+    """
+    Returns a suitable geometry Type (Point, Linstring, NoGeometry) for output
+    :param str errror_type
+    :param str layer_key
+    """
+    error_name = [k for k, v in dict_report_texts.items() if error_name_long == v][0]
+    geom_type = default_report_geoms[error_name]
+    if isinstance(geom_type, dict):
+        return geom_type[layer_key]
+    else:
+        return geom_type

@@ -21,6 +21,7 @@ from qgis.PyQt.QtCore import QVariant
 from .defaults import (
     dict_report_texts,
     dict_ereign_fehler,
+    get_geom_type,
 )
 
 
@@ -370,9 +371,7 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                                 geom_type = 'NoGeometry'
                             else:
                                 feature1_geom = error_df.loc[0, 'geometry']
-                                geom_type = feature1_geom.type().name
-                                if geom_type == 'Line':
-                                     geom_type = 'LineString'
+                                geom_type = get_geom_type(error_name, layer_key)
                             layer_neu = create_layer_from_df( 
                                 report_dict[layer_key][rep_section][error_name],
                                 layer_name,
