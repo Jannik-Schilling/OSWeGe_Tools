@@ -6,7 +6,7 @@
 name=oswege_tools
 qgisMinimumVersion=3.0
 description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden
-version=0.3
+version=0.4
 
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
