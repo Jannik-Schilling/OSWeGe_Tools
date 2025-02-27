@@ -9,14 +9,12 @@ import pandas as pd
 # get-Funktionen
 def get_line_candidates_ids(
     geom,
-    other_layer,
     spatial_index_other,
     tolerance=0.2
 ):
     """
     Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
-    :param other_layer
     :param QgsSpatialIndex spatial_index_other
     :param float tolerance: Suchraum bei Punkten: default 0.2
     :return: list
@@ -43,7 +41,7 @@ def get_line_to_check(
         list_vtx_geom = [geom]
     else:
         list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-    intersecting_ids = get_line_candidates_ids(geom, other_layer, spatial_index_other)
+    intersecting_ids = get_line_candidates_ids(geom, spatial_index_other)
     if len(intersecting_ids)==0:
         return
     else:
@@ -247,7 +245,6 @@ def check_geometrie_wasserscheide_senke(
     vtx = get_vtx(geom, vtx_num)  # QgsGeometry
     intersecting_lines = get_line_candidates_ids(
         vtx,
-        layer_gew,
         spatial_index_other
     )
     if feature_id in intersecting_lines:
