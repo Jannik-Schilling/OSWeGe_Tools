@@ -22,6 +22,7 @@ from .defaults import (
     dict_report_texts,
     dict_ereign_fehler,
     get_geom_type,
+    output_layer_prefixes
 )
 
 
@@ -153,6 +154,10 @@ def replace_values_with_strings(df, replace_dict):
     for column, replace_dict_i in replace_dict.items():
         if column in df.columns:
             df[column] = df[column].replace(replace_dict_i)
+            if column == 'Lage':
+                df[column] = [
+                    'Abweichung: Stp. '+', '.join(val[1]) if type(val)==list else val for val in df[column]
+                ]  # Ausnahme für Linien
     return df
     
 def replace_report_dict_keys(report_dict, replacement_dict):
@@ -170,8 +175,12 @@ def replace_report_dict_keys(report_dict, replacement_dict):
             else:
                 try:
                     occuring_error_names = list(report_dict[layer_key][error_type].keys())
-                except:
-                    print(eport_dict[layer_key][error_type])
+                except Exception:
+                    raise QgsProcessingException(
+                        'Unknown error type ' 
+                        + str(report_dict[layer_key][error_type])
+                        + '. Please contact the developer / maintainer of the plugin'
+                    )
                 for error_name in occuring_error_names:
                     if error_name in replacement_dict:
                         report_dict[layer_key][error_type][replacement_dict[error_name]] = report_dict[layer_key][error_type].pop(error_name)
@@ -256,8 +265,13 @@ def create_feature_from_attrlist(
     if geom_type != 'NoGeometry':
         try:
             f.setGeometry(f_geometry)
-        except:
-            print(f_geometry)
+        except Exception:
+            raise QgsProcessingException(
+                'Could not set geometry of type \"' 
+                + str(f_geometry)
+                + '\" in function create_feature_from_attrlist. '
+                + 'Please contact the developer / maintainer of the plugin'
+            )
     f.setAttributes(attrlist)
     return f
 
@@ -351,7 +365,7 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                 pass
             else:
                 for error_name, error_df in report_dict[layer_key][rep_section].items():
-                    layer_name = layer_key+': '+error_name
+                    layer_name = output_layer_prefixes[layer_key]+': '+error_name
                     feedback.setProgressText(layer_name)
                     if error_name in ['missing_fields', 'fehlende Felder']:
                         list_messages.append(
@@ -396,10 +410,7 @@ def save_layer_to_file(
     # "Treiber"
     geodata_driver_name = 'GPKG'
 
-    # Alle Layer aus der Liste in Datei schreiben, falls die Datei nicht schon existiert
-    if os.path.isfile(fname):
-        raise QgsProcessingException('File '+fname
-        + ' already exists. Please choose another folder.')
+    # Alle Layer aus der Liste in Datei schreiben
     try:
         for i, v_layer in enumerate(vector_layer_list):
             fname_layer = fname

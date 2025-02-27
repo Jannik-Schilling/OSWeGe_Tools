@@ -36,6 +36,7 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.core import (
     NULL,
+    Qgis,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
@@ -51,6 +52,7 @@ from qgis import processing
 
 from .defaults import (
     list_ereign_gew_id_fields,
+    output_layer_prefixes,
     pflichtfelder,
 )
 from .pruefungsroutinen import (
@@ -86,6 +88,11 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
     REPORT_OUT = 'REPORT_OUT'
+    
+    if (int(Qgis.version().split('.')[1]) >= 36) or (int(Qgis.version().split('.')[0]) > 3):
+        newer_qgis_version = True
+    else:
+        newer_qgis_version = False
  
     def initAlgorithm(self, config):
         """
@@ -142,21 +149,21 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 'Geopackage (*.gpkg)'                #'Textdatei (*.txt)',
             )
         )
-        
-        self.addOutput(
-            QgsProcessingOutputFile(
-                self.REPORT_OUT,
-                self.tr('Reportdatei: Geopackage File(*.gpkg)')
-            )
-        ) 
+        if not self.newer_qgis_version:
+            self.addOutput(
+                QgsProcessingOutputFile(
+                    self.REPORT_OUT,
+                    self.tr('Reportdatei: Geopackage File(*.gpkg)')
+                )
+            ) 
 
     def processAlgorithm(self, parameters, context, feedback):
         """
         Hier findet die Verarbeitung statt
         """
         # Festlegung für Tests 
-        test_output_all = False
-        is_test_version = True
+        test_output_all = False  # Ueberspringt das bereinigen des report_dict
+        is_test_version = False  # Hinweis zum Output, Ausgabe der Zeiten
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
@@ -165,19 +172,26 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
+        
+        if os.path.isfile(reportdatei):
+            raise QgsProcessingException('Die Datei '+reportdatei
+            + ' existiert bereits. Bitte einen anderen Dateinamen wählen.')
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
         feedback.setProgressText('Vorbereitung der Tests')
+        log_time('Vorbereitung der Tests', is_start=True)
         layer_dict = {}
         list_crs = []
+        list_layer_types = [
+            'gewaesser',
+            'rohrleitungen',
+            'durchlaesse',
+            'wehre',
+            'schaechte'
+        ]  # wichtig für die Reihenfolge der Tests; in dictionaries kann diese variieren (!)
         for layer_typ, layer in zip(
+            list_layer_types ,
             [
-                'gewaesser',
-                'rohrleitungen',
-                'durchlaesse',
-                'wehre',
-                'schaechte'
-            ],[
                 layer_gew,
                 layer_rohrleitungen,
                 layer_durchlaesse,
@@ -191,29 +205,29 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         if len(set(list_crs)) == 1:
             crs_out = list_crs[0]  # fuer die Ergebnisausgabe
         else:
-            raise QgsProcessingException('Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!')
+            raise QgsProcessingException(
+                'Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!'
+            )
 
         # Dictionary fuer immer wiederkehrende Parameter
         params = {
-            'layer_dict': layer_dict,
-            'feedback': feedback,
-            'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # gu_cd, ba_cd
+            'layer_dict': layer_dict,  # zu pruefende Parameter
+            'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
+            'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
             'gew_primary_key_missing': False,
-            'field_merged_id': 'merged_id',
-            'emptystrdef': [NULL, ''],  # mögliche "Leer"-Definitionen für Zeichketten
+            'field_merged_id': 'merged_id',  # Feldname fuer neue ID, wenn rl und dl vorhanden
+            'emptystrdef': [NULL, ''],  # moegliche "Leer"-Definitionen für Zeichenketten
+            'n_layer': len(layer_dict) # Anzahl der zu bearbeitenden Layer
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
-        log_time('Zusammenfassen', is_start=True)
-        report_dict = create_report_dict(params, is_test_version)
+        report_dict = create_report_dict(params)
 
-        # Anzahl der zu bearbeitenden Layer
-        params['n_layer'] = len([l for l in report_dict if l != 'Hinweis'])
 
-        # rl und dl zusammenfassen, fuer gemeinsame Auswertung
-        # (falls beide Layer vorhanden)
+        # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden
         if layer_rohrleitungen and layer_durchlaesse:
-            # neues Feld "rldl_id" mit dem Layername und der id() des Objekts,
+            log_time('Zusammenfassen')
+            # neues Feld "merged_id" mit dem Layername und der id() des Objekts,
             # weil sich die id() beim Vereinigen der Layer aendert
             rl_mit_id = processing.run(
                 "native:fieldcalculator", {
@@ -242,7 +256,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     'OUTPUT':'memory:'
                 }
             )['OUTPUT']
-            
+
             # Zu Params: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
             params['layer_rldl'] = {
                 'layer': layer_rldl,
@@ -273,12 +287,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
             """
+            layer = params['layer_dict'][key]['layer']
             feedback.setProgressText(
-                'Layer \"'
-                + key + '\" (' + str(i_run+1) + '/'
+                output_layer_prefixes[key] + '-Layer \"'
+                + layer.name() + '\" (' + str(i_run+1) + '/'
                 + str(params['n_layer'])
                 + '):')
-            layer = params['layer_dict'][key]['layer']
             layer_steps = params['layer_dict'][key]['steps']
 
             # Sind die pflichtfelder vorhanden?
@@ -297,14 +311,15 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
             if ereign_gew_id_field in missing_fields:
-                feedback.setProgressText(
-                   'Feld \"'
-                   + ereign_gew_id_field
-                   + '\"(Primärschlüssel) fehlt. '
-                   + 'Attributtest wird übersprungen'
+                prim_text = 'Primärschlüssel' if key == 'gewaesser' else 'Fremdschlüssel'
+                feedback.pushWarning(
+                   'Feld \"' + ereign_gew_id_field + '\" ('
+                   + prim_text +' des Gewässers) fehlt. '
+                   + 'Der Attributtest für dieses Feld wird übersprungen'
                 )
             else:
                 feedback.setProgressText('-- Attribute')
+                log_time((key+'_Attr'))
                 if key == 'gewaesser':
                     list_primary_key_empty = []
                     prim_key_dict = {}
@@ -322,9 +337,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                 prim_key_dict[ft_key].append(feature.id())
                             else:
                                 prim_key_dict[ft_key] = [feature.id()]
-                    
-                    log_time((key+'_Attr'))
-                    
                     list_primary_key_duplicat = [
                         lst for lst in prim_key_dict.values() if len(lst) > 1
                     ]
@@ -332,22 +344,22 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         report_dict[key]['attribute']['primary_key_empty'] = list_primary_key_empty
                     if len(list_primary_key_duplicat) > 0:
                         report_dict[key]['attribute']['primary_key_duplicat'] = list_primary_key_duplicat
-                    
-                    log_time((key+'_Attr_write'))
-                    
+
                 else:  # Attributtest für Ereignisse
                     list_gew_key_empty = []
                     list_gew_key_invalid = []
                     layer_gew = params['layer_dict']['gewaesser']['layer']
                     if params['gew_primary_key_missing']:
-                        feedback.setProgressText(
-                            'Die Zuordnung zum Gewässer kann '
-                            + 'nicht geprueft werden, weil das Feld \"'
+                        feedback.pushWarning(
+                            'Die Zuordnung der Ereignisse über den Gewässernamen kann '
+                            + 'nicht geprüft werden, weil das Feld \"'
                             + ereign_gew_id_field
-                            + '\" im Gewaesserlayer fehlt.'
+                            + '\" im Gewässerlayer fehlt.'
                         )
                     else:
-                        list_gew_keys = [gew_ft.attribute(ereign_gew_id_field) for gew_ft in layer_gew.getFeatures()]
+                        list_gew_keys = [
+                            gew_ft.attribute(ereign_gew_id_field) for gew_ft in layer_gew.getFeatures()
+                        ]
                         for i, feature in enumerate(layer.getFeatures()):
                             feedback.setProgress(int((i+1) * layer_steps))
                             if feedback.isCanceled():
@@ -361,17 +373,16 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                     # Der angegebene Gewaesserschluessel(=Gewaessername)
                                     # ist nicht im Gewaesserlayer vergeben
                                     list_gew_key_invalid.append(feature.id())
-                        log_time((key+'_Attr'))
                         if len(list_gew_key_empty) > 0:
                             report_dict[key]['attribute']['gew_key_empty'] = list_gew_key_empty
                         if len(list_gew_key_invalid) > 0:
                             report_dict[key]['attribute']['gew_key_invalid'] = list_gew_key_invalid
-                        log_time((key+'_Attr_write'))
+                log_time((key+'_Attr_write'))
 
             # Pruefroutinen fuer Geometrien
             feedback.setProgressText('-- Geometrien')
             layer_steps = params['layer_dict'][key]['steps']
-            
+
             # fuer alle Layer: 
             """Diese pruefungsroutinen ggf als Funktion, um Tests zu schreiben"""
             list_geom_is_empty = []
@@ -400,6 +411,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     if not geom.isSimple():
                         list_geom_sefintersect.append(feature.id())
             log_time((key+'_geom_leer_etc'))
+            # write to report dict
             for fehl_typ, fehl_lst in zip([
                 'geom_is_empty',
                 'geom_is_multi',
@@ -413,7 +425,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     df_i = pd.DataFrame({fehl_typ: fehl_lst})
                     report_dict[key]['geometrien'][fehl_typ] = df_i 
             log_time((key+'_geom_leer_etc_write'))
-            
+
+
             feedback.setProgressText('--- Duplikate und Überschneidungen')
             if not ((key in ['rohrleitungen', 'durchlaesse']) and ('layer_rldl' in params.keys())):
                 # Normalfall
@@ -452,6 +465,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         report_dict['layer_rldl']['geometrien']['geom_duplicate'] = df_geom_duplicate_adjusted
                     params['layer_rldl']['runs']['check_duplicates_crossings'] = True
                     log_time((key+'_geom_dup_cro_rldl_write'))
+
 
             if key == 'gewaesser':
                 feedback.setProgressText('--- Wasserscheiden, Senken')
@@ -557,6 +571,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             else:  # Line
                                 series_vtx_bericht = check_geom_on_line(
                                     geom,
+                                    feature_id_temp,
                                     layer_gew,
                                     spatial_index_other,
                                     with_stat=True
@@ -593,7 +608,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     else:
                         other_layer = None
                     if not other_layer:
-                        feedback.setProgressText(
+                        feedback.pushWarning(
                             ' (Prüfung der Lage von Schächten an/auf '
                             + 'Rohrleitungen und Durchlässen wird übersprungen: '
                             + 'Kein(e) Layer für Rohrleitungen und Durchlässe)'
@@ -673,7 +688,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         # run test
         feedback.setProgressText('Tests fuer einzelne Layer')
         feedback.setProgressText('-------------------------')
-        for i, key in enumerate(params['layer_dict'].keys()):
+        for i, key in enumerate(list_layer_types):
             if key in report_dict.keys():
                 main_check(
                     key,
@@ -683,33 +698,76 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     i
                 )
 
-        
-        
+
         # Ausgabe:
         # 1 report_dict bereinigen
         if not test_output_all:
-            feedback.setProgressText('Bereite Ausgabe vor')
+            feedback.setProgressText('Bereinige Fehlerliste...')
             clean_report_dict(report_dict, feedback)
             feedback.setProgressText('Abgeschlossen \n ')
 
+
         # 2 Ausgabe schreiben
-        feedback.setProgressText('Generiere Layer')
-        vector_layer_list, list_messages = create_layers_from_report_dict(report_dict, crs_out, feedback)
+        feedback.setProgressText('Generiere Layer...')
+        vector_layer_list, list_messages = create_layers_from_report_dict(
+            report_dict,
+            crs_out, feedback
+        )
         feedback.setProgressText('Abgeschlossen \n ')
         
-        feedback.setProgressText('Speichere Layer in Datei')
-        save_layer_to_file(vector_layer_list, reportdatei)   
-        feedback.setProgressText('Abgeschlossen \n ')     
-        log_time('WriteLayer')
+        if len(vector_layer_list) > 0:
+            feedback.setProgressText('Speichere Layer in Datei...')
+            save_layer_to_file(vector_layer_list, reportdatei)   
+            feedback.setProgressText('Abgeschlossen \n ')     
+            log_time('WriteLayer')
         
-        # Fehlende Spalten
-        if len(list_messages) > 0:
-            feedback.setProgressText('Hinweise zu Attributen:')
-            for msg in list_messages:
-                feedback.pushWarning(msg)
         
-        #print(dict_log)
-        return {self.REPORT_OUT: reportdatei} 
+        if is_test_version:
+            feedback.setProgressText(' \nDauer der Schritte:')
+            timing_txt = [str(k)+': '+str(v) for k, v in dict_log.items() if k != 'current']
+            feedback.setProgressText('\n'.join(timing_txt))
+        
+        # 3 Feedback
+        if self.newer_qgis_version:
+            feedback.pushFormattedMessage(
+                html=(
+                    '<p><b>Ergebnis der Datenprüfung</b>'
+                    + '<br>-----------------------</p>'
+                ),
+                text='Ergebnis der Datenprüfung'
+            )
+            # Fehlende Spalten
+            if len(list_messages) > 0:
+                feedback_txt = 'weiteren '
+                for msg in list_messages:
+                    feedback.pushWarning(msg)
+            else:
+                feedback_txt = ''
+            if len(vector_layer_list) == 0:
+                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz')
+            else:
+                res_file_name = os.path.split(reportdatei)[1]
+                feedback.pushFormattedMessage(
+                html=(
+                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Datenfehlern ({res_file_name})</a>'
+                ),
+                text=f'Ergebnis in {reportdatei}'
+            )
+            feedback.setProgressText('-----------------------')
+            return {}
+        else:  # for older QGIS Versions
+            feedback.setProgressText('\nErgebnis der Datenprüfung\n-----------------------')
+            # Fehlende Spalten
+            if len(list_messages) > 0:
+                feedback_txt = 'weiteren '
+                for msg in list_messages:
+                    feedback.pushWarning(msg)
+            else:
+                feedback_txt = ''
+            if len(vector_layer_list) == 0:
+                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz\n---------------------')
+            else:
+                return {self.REPORT_OUT: reportdatei} 
 
     def name(self):
         return 'Pruefroutine_Gewaesserdaten'
