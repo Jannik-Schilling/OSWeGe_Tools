@@ -7,7 +7,12 @@ from qgis.core import (
 import pandas as pd
 
 # get-Funktionen
-def get_line_candidates_ids(geom, other_layer, spatial_index_other, tolerance=0.2):
+def get_line_candidates_ids(
+    geom,
+    other_layer,
+    spatial_index_other,
+    tolerance=0.2
+):
     """
     Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
@@ -22,7 +27,11 @@ def get_line_candidates_ids(geom, other_layer, spatial_index_other, tolerance=0.
         intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
     return intersecting_ids
 
-def get_line_to_check(geom, other_layer, spatial_index_other):
+def get_line_to_check(
+    geom,
+    other_layer,
+    spatial_index_other
+):
     """
     Ermittelt mithilfe einer Boundingbox EIN Linienobjekt aus dem other_layer, auf dem geom liegen könnte
     :param QgsGeometry geom
@@ -72,6 +81,7 @@ def check_duplicates_crossings(
     :param QgsVectorLayer layer,
     :param QgsProcessingFeedbackfeedback,
     :param float layer_steps,
+    :return tuple: (list_crossing = [], list_duplicates = [])
     """
     list_geom_duplicate = []
     list_geom_crossings = []
@@ -112,7 +122,6 @@ def check_duplicates_crossings(
                     intersection_point = geom.intersection(other_geom)
                     list_geom_crossings.append(list(group_i)+[intersection_point])
                     visited_groups_crossings.add(group_i)
-    print(list_geom_crossings)
     df_geom_crossings = pd.DataFrame(list_geom_crossings, columns = column_names)
     df_geom_duplicate = pd.DataFrame(list_geom_duplicate, columns = column_names)
     return df_geom_crossings, df_geom_duplicate
@@ -129,13 +138,20 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
     return geom2.distance(vtx_geom) <= tolerance
 
 
-def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
+def check_geom_on_line(
+    geom,
+    feature_id_temp,
+    gew_layer,
+    spatial_index_other,
+    with_stat=False
+):
     """
     Prueft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
     :param QgsGeometry (Line) geom
+    :param str feature_id_temp: Id des Objekts
     :param QgsVectorLayer (Line) gew_layer
     :param QgsSpatialIndex spatial_index_other
-    :param bool with_stat: Rückgabe der Staionierung?; default: False
+    :param bool with_stat: Rückgabe der Stationierung?; default: False
     :return: dict
     """
     dict_vtx_bericht = {}  
@@ -148,7 +164,7 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
 
     # Stationierung
     for vtx in list_vtx_geom:
-        # naechster Punkt auf dem Gewässer, als Point XY
+        # naechster Punkt auf dem Gewaesser, als Point XY
         nearest_gew_point = gew_i_geom.nearestPoint(vtx)
         nearest_gew_xy = nearest_gew_point.asPoint()
         # naechster Stuetzpunkt danach
@@ -162,7 +178,7 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
             first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
         first_segment = [QgsPoint(p) for p in first_segment]
         first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-        stationierung = round(first_segment_geom.length(),5)
+        stationierung = first_segment_geom.length()
         list_gew_stat.append(stationierung)
 
     # Richtung
@@ -194,11 +210,16 @@ def check_geom_on_line(geom, gew_layer, spatial_index_other, with_stat=False):
     # Lage
     list_point_on_line = []
     for vtx_geom, vtx_subline in zip(list_vtx_geom, list_sub_line_vtx_geom):
-        list_point_on_line.append(check_vtx_distance(vtx_geom, vtx_subline))
+        list_point_on_line.append(
+            check_vtx_distance(
+                vtx_geom,
+                vtx_subline
+            )
+        )
     if not all(list_point_on_line):
-        sr_vtx_report['Lage'] = 1  # Abweichung
+        sr_vtx_report['Lage'] = [1, [str(i) for i, b in enumerate(list_point_on_line) if not b]]  # Abweichung
     else:
-        sr_vtx_report['Lage'] = 0  # Korrekt
+        sr_vtx_report['Lage'] = 0 # Korrekt
     sr_vtx_report['geometry'] = geom
     return sr_vtx_report
 
@@ -211,12 +232,13 @@ def check_geometrie_wasserscheide_senke(
     senke=False
 ):
     '''
-    :param QgsGeometry geom
-    :param int feature_id
+    Ueberprueft ob die Geometrie mit anderen Geometrien eine Wasserscheide oder Senke bildet
+    :param QgsGeometry geom: Geometrie des aktuellen Gewaesserobjekts
+    :param int feature_id: id() des aktuellen Gewaesserobjekts
     :param QgsVectorLayer (line) layer_gew
     :param QgsSpatialIndex spatial_index_other
     :param bool senke
-    :return list
+    :return None or list [[feature_id, id2, ..., idn], vtx_geom]
     '''
     if senke:
         vtx_num = 0
@@ -229,6 +251,7 @@ def check_geometrie_wasserscheide_senke(
         spatial_index_other
     )
     if feature_id in intersecting_lines:
+        # die eigene id() entfernen
         intersecting_lines.remove(feature_id)
     if len(intersecting_lines) == 0:
         return None# Quelle oder Muendung (korrekt)
@@ -267,7 +290,7 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
             df_vorher = pd.DataFrame()
             layer_steps = 1
 
-    # Das Stationierungs-Dict je Gewässer aufbereiten
+    # Das Stationierungs-Dict je Gewaesser aufbereiten
     dict_stat = {}
     df_vorher['start'] = [min(lst) if isinstance(lst, list) else -1 for lst in df_vorher['vtx_stat']]
     df_vorher['stop'] = [max(lst) if isinstance(lst, list) else -1 for lst in df_vorher['vtx_stat']]

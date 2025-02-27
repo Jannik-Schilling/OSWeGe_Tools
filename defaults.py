@@ -54,7 +54,7 @@ dict_ereign_fehler = {
     }
 }
 
-#
+# Fehlertexte
 dict_report_texts = {
     'missing_fields': 'fehlende Felder',
     'primary_key_empty': 'fehlender Gewässername (Primärschlüssel)',
@@ -65,23 +65,25 @@ dict_report_texts = {
     'geom_ereign_auf_gew': 'Lage auf Gewässerlinie',
     'geom_duplicate': 'identische Geometrien (Duplikate)',
     'geom_is_multi': 'Multigeometrie',
-    'geom_is_empty': 'Leere Geometrie',
-    'geom_overlap': 'sich überlappende Linienereignisse (RL / DL)',
-    'geom_sefintersect': 'selbstüberschneidung',
+    'geom_is_empty': 'leere Geometrie',
+    'geom_overlap': 'sich überlappende Linienereignisse',
+    'geom_selfintersect': 'Selbstüberschneidung',
     'geom_schacht_auf_rldl': 'Lage auf Rohrleitung oder Durchlass',
     'wasserscheiden': 'Alle Linien führen von einander weg (\"Wasserscheide\" ohne Zufluss)',
     'senken': 'Alle Linien führen auf einander zu (\"Senke\" ohne Abfluss)'
 }
 
-
+# Output Geometrien nach Layern
 default_typical_geoms = {
     'schaechte': 'Point',
     'wehre': 'Point',
+    'gewaesser': 'LineString',
     'rohrleitungen' : 'LineString',
     'durchlaesse' : 'LineString',
     'layer_rldl': 'LineString',
 }
 
+# Output Geometrien nach Fehlern
 default_report_geoms = {
     'missing_fields': 'NoGeometry',
     'primary_key_empty': 'NoGeometry',
@@ -100,11 +102,21 @@ default_report_geoms = {
     'senken': 'Point',
 }
 
+output_layer_prefixes = {
+    'schaechte': 'Schächte',
+    'wehre': 'Wehre',
+    'gewaesser': 'Gewässer',
+    'rohrleitungen' : 'Rohrleitungen',
+    'durchlaesse' : 'Durchlässe',
+    'layer_rldl': 'Rohrleitungen + Durchlässe',
+}
+
 def get_geom_type(error_name_long, layer_key=None):
     """
-    Returns a suitable geometry Type (Point, Linstring, NoGeometry) for output
+    Ermittelt den passenden Geometrietyp (Point, Linstring, NoGeometry) fuer den Output-Layer
     :param str errror_type
     :param str layer_key
+    :return str: Geometrietyp
     """
     error_name = [k for k, v in dict_report_texts.items() if error_name_long == v][0]
     geom_type = default_report_geoms[error_name]
