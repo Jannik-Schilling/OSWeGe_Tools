@@ -31,6 +31,7 @@ __revision__ = '$Format:%H$'
 import os
 from qgis.core import QgsProcessingProvider
 from .check_gew_daten import checkGewaesserDaten
+from .fg_ae import AddFgAeAlagorithm
 from qgis.PyQt.QtGui import QIcon
 
 pluginPath = os.path.dirname(__file__)
@@ -55,6 +56,7 @@ class oswegeToolsProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         self.addAlgorithm(checkGewaesserDaten())
+        self.addAlgorithm(AddFgAeAlagorithm())
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 
