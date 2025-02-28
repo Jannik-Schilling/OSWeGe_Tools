@@ -6,12 +6,12 @@
 name=oswege_tools
 qgisMinimumVersion=3.0
 description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden
-version=0.5
+version=0.6
 
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug)
+about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug), fg_ae-Abschnitte erstellen
 
 tracker=https://github.com/Jannik-Schilling/OSWeGe_Tools/issues
 repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
