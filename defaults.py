@@ -1,6 +1,3 @@
-import os
-import pandas as pd
-
 class oswScriptType:
     """Klasse fuer die Scripttypen"""
     PROCESSING='PROCESSING'
@@ -110,17 +107,3 @@ output_layer_prefixes = {
     'durchlaesse' : 'Durchlässe',
     'layer_rldl': 'Rohrleitungen + Durchlässe',
 }
-
-def get_geom_type(error_name_long, layer_key=None):
-    """
-    Ermittelt den passenden Geometrietyp (Point, Linstring, NoGeometry) fuer den Output-Layer
-    :param str errror_type
-    :param str layer_key
-    :return str: Geometrietyp
-    """
-    error_name = [k for k, v in dict_report_texts.items() if error_name_long == v][0]
-    geom_type = default_report_geoms[error_name]
-    if isinstance(geom_type, dict):
-        return geom_type[layer_key]
-    else:
-        return geom_type

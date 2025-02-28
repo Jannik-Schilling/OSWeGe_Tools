@@ -47,10 +47,6 @@ from .resources import *
 # Import the code for the dialog and provider
 from .stationierung_dialog import stationierungDialog
 from .oswegeToolsProvider import oswegeToolsProvider
-#from .hilfsfunktionen import (
-    #compare_versions,
-    #get_metadata
-#)
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 

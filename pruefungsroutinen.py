@@ -6,69 +6,11 @@ from qgis.core import (
 
 import pandas as pd
 
-# get-Funktionen
-def get_line_candidates_ids(
-    geom,
-    other_layer,
-    spatial_index_other,
-    tolerance=0.2
-):
-    """
-    Ermittelt mithilfe einer Boundingbox die ids von Linienobjekten aus dem other_layer, auf dem geom liegen könnte
-    :param QgsGeometry geom
-    :param other_layer
-    :param QgsSpatialIndex spatial_index_other
-    :param float tolerance: Suchraum bei Punkten: default 0.2
-    :return: list
-    """
-    if geom.type() == 0:  # Point
-        intersecting_ids = spatial_index_other.intersects(geom.boundingBox().buffered(tolerance))
-    else:
-        intersecting_ids = spatial_index_other.intersects(geom.boundingBox())
-    return intersecting_ids
-
-def get_line_to_check(
-    geom,
-    other_layer,
-    spatial_index_other
-):
-    """
-    Ermittelt mithilfe einer Boundingbox EIN Linienobjekt aus dem other_layer, auf dem geom liegen könnte
-    :param QgsGeometry geom
-    :param other_layer
-    :param QgsSpatialIndex spatial_index_other
-    :return: QgsFeature
-    """
-    if geom.type() == 0:  # Point
-        list_vtx_geom = [geom]
-    else:
-        list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
-    intersecting_ids = get_line_candidates_ids(geom, other_layer, spatial_index_other)
-    if len(intersecting_ids)==0:
-        return
-    else:
-        # eines oder mehrere Gewaesser gefunden
-        list_sum = []
-        for gew_id in intersecting_ids:
-            # identifiziere das Gewaesser mit dem geringsten Abstand der Stützpunkte in Summe
-            gew_ft_candidate = other_layer.getFeature(gew_id)
-            list_sum.append(sum([gew_ft_candidate.geometry().distance(vtx) for vtx in list_vtx_geom]))
-        position_in_list = list_sum.index(min(list_sum))
-        line_feature = other_layer.getFeature(intersecting_ids[position_in_list])
-        return line_feature
-
-def get_vtx(line_geom, vtx_index):
-    """
-    Gibt den Stuetzpunkt einer Liniengeometrie mit dem index vtx_index als QgsGeometry zurück
-    :param QgsGeometry line_geom
-    :param int vtx_index
-    :return QgsGeometry
-    """
-    if line_geom.isMultipart():
-        pt = QgsPoint(line_geom.asMultiPolyline()[vtx_index][vtx_index])
-    else: 
-        pt = QgsPoint(line_geom.asPolyline()[vtx_index])
-    return QgsGeometry(pt)
+from .hilfsfunktionen import (
+    get_line_candidates_ids,
+    get_line_to_check,
+    get_vtx
+)
 
 # fuer alle
 def check_duplicates_crossings(
@@ -154,7 +96,6 @@ def check_geom_on_line(
     :param bool with_stat: Rückgabe der Stationierung?; default: False
     :return: dict
     """
-    dict_vtx_bericht = {}  
     sr_vtx_report = pd.Series()  # Fehlermeldungen siehe defaults.dict_ereign_fehler
     other_line_ft = get_line_to_check(geom, gew_layer, spatial_index_other)
     sr_vtx_report['gew_id'] = other_line_ft.id()
@@ -247,7 +188,6 @@ def check_geometrie_wasserscheide_senke(
     vtx = get_vtx(geom, vtx_num)  # QgsGeometry
     intersecting_lines = get_line_candidates_ids(
         vtx,
-        layer_gew,
         spatial_index_other
     )
     if feature_id in intersecting_lines:
@@ -288,7 +228,6 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
             df_vorher = report_dict['durchlaesse']['geometrien']['geom_ereign_auf_gew']
         else:
             df_vorher = pd.DataFrame()
-            layer_steps = 1
 
     # Das Stationierungs-Dict je Gewaesser aufbereiten
     dict_stat = {}
@@ -323,7 +262,7 @@ def check_overlap_by_stat(params, report_dict, layer_steps):
 
 def ranges_overlap(range1, range2):
     """
-    Check if two ranges (represented as [f0, f1]) overlap.
+    Ueberprueft, ob sich zwei Ranges ueberschneiden (f0, f1).
     :param list range1
     :param list range2
     """
@@ -332,3 +271,31 @@ def ranges_overlap(range1, range2):
     if f0_1 < f1_2 and f0_2 < f1_1:
         return [id1, id2, geom1]
 
+
+
+def muendet_nicht_in_fg_2ordnung(
+    current_ft_fg,
+    spatial_index_fg,
+    layer_fg
+):
+    """
+    Ueberprueft, ob ein Objekt des Layers fg in ein anderes objekt des selben Layers muendet.
+    :param QgsFeature current_ft_fg
+    :param QgsSpatialIndex spatial_index_fg
+    :param QgsVectorLayer layer_fg
+    :return bool
+    """
+    current_ft_id = current_ft_fg.id()
+    vtx_muendung = QgsGeometry(current_ft_fg.geometry().vertexAt(0))
+    intersecting_candidates_1 = get_line_candidates_ids(vtx_muendung, spatial_index_fg)
+    if current_ft_id in intersecting_candidates_1:
+        # die eigene id() entfernen
+        intersecting_candidates_1.remove(current_ft_id)
+    intersecting_ids = [
+        ft_id for ft_id in intersecting_candidates_1 if check_vtx_distance(
+            layer_fg.getFeature(ft_id).geometry(),
+            vtx_muendung,
+            1e-5
+        )
+    ]
+    return len(intersecting_ids)==0  # True wenn keines schneidet

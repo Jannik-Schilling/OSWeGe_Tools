@@ -43,10 +43,8 @@ from qgis.core import (
     QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
-    QgsProject,
     QgsSpatialIndex,
     QgsWkbTypes,
-    QgsVectorFileWriter
 )
 from qgis import processing
 
@@ -61,7 +59,6 @@ from .pruefungsroutinen import (
     check_geom_on_line,
     check_overlap_by_stat,
     check_vtx_distance,
-    get_line_to_check
 )
 
 from .check_gew_report import (
@@ -74,6 +71,7 @@ from .check_gew_report import (
 
 from .hilfsfunktionen import (
     dict_log,
+    get_line_to_check,
     log_time
 )
 
@@ -749,7 +747,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 res_file_name = os.path.split(reportdatei)[1]
                 feedback.pushFormattedMessage(
                 html=(
-                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Datenfehlern ({res_file_name})</a>'
+                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Attributfehlern ({res_file_name})</a>'
                 ),
                 text=f'Ergebnis in {reportdatei}'
             )
@@ -770,16 +768,16 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 return {self.REPORT_OUT: reportdatei} 
 
     def name(self):
-        return 'Pruefroutine_Gewaesserdaten'
+        return '1_Pruefroutine_Gewaesserdaten'
 
     def displayName(self):
-        return 'Pruefroutine_Gewaesserdaten'
+        return '1_Pruefroutine_Gewaesserdaten'
 
     def group(self):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return 'Pruefroutinen'
+        return 'Datenexport'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

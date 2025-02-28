@@ -1,7 +1,4 @@
 # Dieses Pythonskript Enthaelt die Funktionen fuer den Report
-from datetime import datetime
-import copy
-import os
 import pandas as pd
 
 from qgis.core import (
@@ -10,8 +7,6 @@ from qgis.core import (
     QgsFeature,
     QgsProcessingException,
     QgsProject,
-    QgsSpatialIndex,
-    QgsWkbTypes,
     QgsVectorFileWriter,
     QgsVectorLayer,
 )
@@ -21,9 +16,10 @@ from qgis.PyQt.QtCore import QVariant
 from .defaults import (
     dict_report_texts,
     dict_ereign_fehler,
-    get_geom_type,
     output_layer_prefixes
 )
+
+from .hilfsfunktionen import get_geom_type
 
 
 def create_report_dict(params, is_test_version=False):
@@ -384,7 +380,6 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                             if (rep_section == 'attribute') or (not 'geometry' in error_df.keys()):
                                 geom_type = 'NoGeometry'
                             else:
-                                feature1_geom = error_df.loc[0, 'geometry']
                                 geom_type = get_geom_type(error_name, layer_key)
                             layer_neu = create_layer_from_df( 
                                 report_dict[layer_key][rep_section][error_name],
@@ -421,7 +416,7 @@ def save_layer_to_file(
                 options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
             options.layerName = v_layer.name()
             transform_context = QgsProject.instance().transformContext()
-            a = QgsVectorFileWriter.writeAsVectorFormatV3(
+            QgsVectorFileWriter.writeAsVectorFormatV3(
                 v_layer,
                 fname_layer,
                 transform_context,
