@@ -747,7 +747,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 res_file_name = os.path.split(reportdatei)[1]
                 feedback.pushFormattedMessage(
                 html=(
-                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Datenfehlern ({res_file_name})</a>'
+                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Attributfehlern ({res_file_name})</a>'
                 ),
                 text=f'Ergebnis in {reportdatei}'
             )
