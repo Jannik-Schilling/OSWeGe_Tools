@@ -42,10 +42,10 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
     OUTPUT = "OUTPUT"
 
     def name(self) -> str:
-        return "fg_ae_Hinzufuegen"
+        return "2_fg_ae_hinzufuegen"
 
     def displayName(self) -> str:
-        return "fg_ae_Hinzufuegen"
+        return "2_fg_ae_hinzufuegen"
 
     def group(self) -> str:
         return "Datenexport"
@@ -54,7 +54,15 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         return "Datenexport"
 
     def shortHelpString(self) -> str:
-        return "Example algorithm short description"
+        return (
+            'Mit diesem Werkzeug werden Einleitungs- und Ausleitungsabschnitte '
+            + 'zu Gewässern 1. Ordnunung erstellt. \n\n'
+            + 'Eingaben:\n'
+            + '- Der Gewässer-Layer (fg) mit den Verbandsgewässern (2. Ordnung)\n'
+            + '- Ein Linienlayer der Fließgewässer 1. Ordnung. '
+            + 'Dieser kann bespielsweise aus den Daten des Umweltkartenportals mit dem Werkzeug '
+            + '\'Nach Ausdruck extrahieren\' mit  \' \"wmd\" in (1501, 1502) \'  erstellt werden'
+        )
 
     def initAlgorithm(self, config=None):
         self.addParameter(

@@ -768,10 +768,10 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 return {self.REPORT_OUT: reportdatei} 
 
     def name(self):
-        return 'Pruefroutine_Gewaesserdaten'
+        return '1_Pruefroutine_Gewaesserdaten'
 
     def displayName(self):
-        return 'Pruefroutine_Gewaesserdaten'
+        return '1_Pruefroutine_Gewaesserdaten'
 
     def group(self):
         return self.tr(self.groupId())
