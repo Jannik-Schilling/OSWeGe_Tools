@@ -25,7 +25,9 @@ für eine Auswahl an Layern wird geprüft
    Die Ergebnisse werden als Separate Layer in einer Geopackage-Datei gespeichert
 ![grafik](https://github.com/user-attachments/assets/06891192-8364-4fd8-8918-a92cd533b8d4)
 ### fg_ae-Abschnitte erstellen
-Zwischen den Gewässern 2. Ordnung und den Gewässern 1. Ordnung werden die benötigten Einleitungs- und Ausleitungsabschnitte erstellt
+Zwischen den Gewässern 2. Ordnung und den Gewässern 1. Ordnung werden die benötigten Einleitungs- und Ausleitungsabschnitte erstellt. Die Abschnitte können nur bei korrekter Linienrichtung der Verbandsgewässer erstellt werden (entgegen der Fließrichtung / 1. Stützpunkt an der Mündung)
+![before](https://github.com/user-attachments/assets/ead523da-f77b-448a-b33d-edbb94beda20)
+
 
 ### Anzeige der Stationierung eines Gewässers (in der Werkeugleiste "Plugins")
   ![abfrage_stationierung](https://github.com/user-attachments/assets/f4a8d121-707b-46d7-bd82-077841d0af92)
