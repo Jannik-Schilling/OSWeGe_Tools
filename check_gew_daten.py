@@ -160,8 +160,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         Hier findet die Verarbeitung statt
         """
         # Festlegung für Tests 
-        test_output_all = False  # Ueberspringt das bereinigen des report_dict
-        is_test_version = False  # Hinweis zum Output, Ausgabe der Zeiten
+        test_output_all = False  # Ueberspringt das bereinigen des report_dict, wenn True
+        is_test_version = False  # Hinweis zum Output, Ausgabe der Zeiten, wenn True
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
@@ -562,7 +562,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                                         series_vtx_bericht['Lage'] = 1
                                     else:
                                         # korrekt
-                                        series_vtx_bericht['Lage'] = 0  # hier später noch die Stationierung
+                                        series_vtx_bericht['Lage'] = 0  # hier spaeter noch die Stationierung
                                 else:
                                     # kein Gewaesser in der Naehe gefunden
                                     series_vtx_bericht['Lage'] = 1
@@ -595,7 +595,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                             report_dict[key_temp]['geometrien']['geom_overlap'] = df_overlap
                 log_time((key+'_geom_ueberlappungen'))
 
-                # Liegen Schächte korrekt auf RL oder DL?
+                # Liegen Schaechte korrekt auf RL oder DL?
                 if key == 'schaechte':
                     if 'layer_rldl' in params.keys():
                         other_layer = params['layer_rldl']['layer']
@@ -686,7 +686,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         # run test
         feedback.setProgressText('Tests fuer einzelne Layer')
         feedback.setProgressText('-------------------------')
-        for i, key in enumerate(list_layer_types):
+        i = 0
+        for key in list_layer_types:
             if key in report_dict.keys():
                 main_check(
                     key,
@@ -695,6 +696,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     feedback,
                     i
                 )
+                i = i+1
 
 
         # Ausgabe:
@@ -747,7 +749,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 res_file_name = os.path.split(reportdatei)[1]
                 feedback.pushFormattedMessage(
                 html=(
-                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Attributfehlern ({res_file_name})</a>'
+                    f'<a href=\"file:///{reportdatei}\">Link zur Datei mit Geometrie-/Datenfehlern ({res_file_name})</a>'
                 ),
                 text=f'Ergebnis in {reportdatei}'
             )
@@ -775,6 +777,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
     def group(self):
         return self.tr(self.groupId())
+
+    def shortHelpString(self) -> str:
+        return (
+            'Mit diesem Werkzeug werden Geodaten für den Export ins '
+            + 'FIS-Gewässer geprüft. \n'
+            + 'Die Ergebnisse der Prüfroutine werden als '
+            + 'einzelne Layer in einer Geopackage-Datei (\"Reportdatei\") gespeichert'
+        )
 
     def groupId(self):
         return 'Datenexport'
