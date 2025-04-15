@@ -708,7 +708,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
 
         # 2 Ausgabe schreiben
-        feedback.setProgressText('Generiere Layer...')
+        feedback.setProgressText('Generiere Layer / Ausgabe...')
         vector_layer_list, list_messages = create_layers_from_report_dict(
             report_dict,
             crs_out, feedback
@@ -744,7 +744,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             else:
                 feedback_txt = ''
             if len(vector_layer_list) == 0:
-                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz')
+                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz; es wird keine Reportdatei erzeugt.')
             else:
                 res_file_name = os.path.split(reportdatei)[1]
                 feedback.pushFormattedMessage(
@@ -765,7 +765,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             else:
                 feedback_txt = ''
             if len(vector_layer_list) == 0:
-                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz\n---------------------')
+                feedback.setProgressText(f'Keine {feedback_txt}Fehler im Datensatz; es wird keine Reportdatei erzeugt\n---------------------')
             else:
                 return {self.REPORT_OUT: reportdatei} 
 

@@ -371,6 +371,8 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                             + ', '.join(error_df)
                         )
                     else:
+                        if isinstance(error_df, list):
+                            error_df = pd.DataFrame({'feature_id':error_df})
                         if not isinstance(error_df, pd.DataFrame):
                             pass  # sollte eigentlich nicht vorkommen
                         else:
@@ -382,7 +384,7 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                             else:
                                 geom_type = get_geom_type(error_name, layer_key)
                             layer_neu = create_layer_from_df( 
-                                report_dict[layer_key][rep_section][error_name],
+                                error_df,
                                 layer_name,
                                 geom_type,
                                 crs_out,
