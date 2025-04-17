@@ -240,8 +240,11 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         funktion um wieder auszuschalten, wenn ein anderes tool aktiv wird
         """
         if isinstance(tool, QgsMapTool):
-            if self.canvas.mapTool().parent() != self:
+            if self.canvas.mapTool().toolName() == 'Identify':
                 self.set_grey() 
+            if self.canvas.mapTool().parent() != self:
+                self.set_grey()
+
 
     def closeEvent(self, evnt):
         self.set_grey()
