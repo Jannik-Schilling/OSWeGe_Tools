@@ -6,7 +6,9 @@ from qgis.core import (
     QgsLineString,
     QgsPoint,
     QgsProcessingException
+
 )
+from qgis import processing
 
 from .defaults import (
     default_report_geoms,
@@ -110,7 +112,79 @@ def get_geom_type(error_name_long, layer_key=None):
     else:
         return geom_type
 
+# layerfunktionen
+def handle_rl_and_dl( 
+    layer_rohrleitungen,
+    layer_durchlaesse,
+    params,
+    report_dict
+):
+    """
+    Falls rl und dl vorhanden sind werden sie zu einem Layer zusammengefuehrt
+    Dazu wird ein Eintrag in params und report_dict erstellt
+    :param QgsVectorLayer layer_rohrleitungen
+    :param QgsVectorLayer layer_durchlaesse
+    :param dict params: alle benannten Parameter
+    :param dict report_dict
+    """
+    if layer_rohrleitungen and layer_durchlaesse:
+        layer_rldl = def merge_rl_dl(
+            params
+        )
+    
+        # Zu Params: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
+        params['layer_rldl'] = {
+            'layer': layer_rldl,
+            'runs': {  
+                'check_duplicates_crossings': False,  
+                'check_geom_ereign_auf_gew': False,
+                'check_overlap_by_stat': False
+            },
+        }
+        report_dict['layer_rldl'] = {'geometrien':{}}
 
+def merge_rl_dl(
+    params
+):
+    """
+    Fuehrt die Layer rl und dl zu einem neuen Layer zusammen
+    :param dict params: alle benannten Parameter
+    :return QgsVectorLayer
+    """
+    log_time('Zusammenfassen')
+    # neues Feld "merged_id" mit dem Layername und der id() des Objekts,
+    # weil sich die id() beim Vereinigen der Layer aendert
+    rl_mit_id = processing.run(
+        "native:fieldcalculator", {
+            'INPUT': params['layer_dict']['rohrleitungen']['layer'],
+            'FIELD_NAME': params['field_merged_id'],
+            'FIELD_TYPE': 2,
+            'FORMULA': "concat(@layer_name,': ',$id)",
+            'OUTPUT': 'memory:'
+        }
+    )['OUTPUT']
+    dl_mit_id = processing.run(
+        "native:fieldcalculator", {
+            'INPUT': params['layer_dict']['durchlaesse']['layer'],
+            'FIELD_NAME': params['field_merged_id'],
+            'FIELD_TYPE': 2,
+            'FORMULA': "concat(@layer_name,': ',$id)",
+            'OUTPUT': 'memory:'
+        }
+    )['OUTPUT']
+
+    # Vereinigen der layer rl und dl für Überschneidungsanalyse
+    layer_rldl = processing.run(
+        "native:mergevectorlayers",
+        {
+            'LAYERS': [rl_mit_id, dl_mit_id],
+            'OUTPUT':'memory:'
+        }
+    )['OUTPUT']
+    return layer_rldl
+
+
+# geometriefunktionen
 def linie_verlaengern(
     n,
     vtx_muendung,

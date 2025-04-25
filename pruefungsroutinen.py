@@ -12,6 +12,7 @@ from .hilfsfunktionen import (
     get_vtx
 )
 
+
 # fuer alle
 def check_duplicates_crossings(
     layer,
@@ -133,11 +134,7 @@ def check_geom_on_line(
         sr_vtx_report['Richtung'] = 2  # falsche Reihenfolge
 
     # Den Linienabschnitt zum Vergleich generieren
-    for i, part in enumerate(gew_i_geom.parts()):
-        if i > 0:
-            pass
-        else:
-            sub_line = part.curveSubstring(list_gew_stat[0] , list_gew_stat[-1])
+    sub_line = sub_line_by_stats(gew_i_geom, list_gew_stat[0] , list_gew_stat[-1])
     list_sub_line_vtx_geom = [QgsGeometry(vtx) for vtx in sub_line.vertices()]
 
     # Anzahl der Stützpunkte
@@ -164,6 +161,26 @@ def check_geom_on_line(
     sr_vtx_report['geometry'] = geom
     return sr_vtx_report
 
+def sub_line_by_stats(
+    line_geom,
+    stat_start,
+    stat_end
+):
+    """
+    Erstellt einen Linienteil anhand zweier Stationierungen (Start, Ende)
+    :param QgsGeometry line_geom
+    :param float stat_start
+    :param float stat_end
+    :return: QgsGeometry or None if line_geom is mulitpart
+    """
+    line_parts = line_geom.parts()
+    if len(line_parts) > 1:
+        pass  # create warnong or raise error
+    line_part_0 = line_parts[0]
+    #if line_part_0.length() < stat_end:
+    #    pass  # create warnong or raise error
+    sub_line = line_part_0.curveSubstring(stat_start , stat_end)
+    return sub_line
 
 def check_geometrie_wasserscheide_senke(
     geom,

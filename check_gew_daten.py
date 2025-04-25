@@ -61,6 +61,10 @@ from .pruefungsroutinen import (
     check_vtx_distance,
 )
 
+from .attributpruefung import (
+    missing_fields_check
+)
+
 from .check_gew_report import (
     clean_report_dict,
     create_report_dict,
@@ -72,6 +76,7 @@ from .check_gew_report import (
 from .hilfsfunktionen import (
     dict_log,
     get_line_to_check,
+    handle_rl_and_dl,
     log_time
 )
 
@@ -222,49 +227,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         report_dict = create_report_dict(params)
 
 
-        # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden
-        if layer_rohrleitungen and layer_durchlaesse:
-            log_time('Zusammenfassen')
-            # neues Feld "merged_id" mit dem Layername und der id() des Objekts,
-            # weil sich die id() beim Vereinigen der Layer aendert
-            rl_mit_id = processing.run(
-                "native:fieldcalculator", {
-                    'INPUT': params['layer_dict']['rohrleitungen']['layer'],
-                    'FIELD_NAME': params['field_merged_id'],
-                    'FIELD_TYPE': 2,
-                    'FORMULA': "concat(@layer_name,': ',$id)",
-                    'OUTPUT': 'memory:'
-                }
-            )['OUTPUT']
-            dl_mit_id = processing.run(
-                "native:fieldcalculator", {
-                    'INPUT': params['layer_dict']['durchlaesse']['layer'],
-                    'FIELD_NAME': params['field_merged_id'],
-                    'FIELD_TYPE': 2,
-                    'FORMULA': "concat(@layer_name,': ',$id)",
-                    'OUTPUT': 'memory:'
-                }
-            )['OUTPUT']
-
-            # Vereinigen der layer rl und dl für Überschneidungsanalyse
-            layer_rldl = processing.run(
-                "native:mergevectorlayers",
-                {
-                    'LAYERS': [rl_mit_id, dl_mit_id],
-                    'OUTPUT':'memory:'
-                }
-            )['OUTPUT']
-
-            # Zu Params: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
-            params['layer_rldl'] = {
-                'layer': layer_rldl,
-                'runs': {  
-                    'check_duplicates_crossings': False,  
-                    'check_geom_ereign_auf_gew': False,
-                    'check_overlap_by_stat': False
-                },
-            }
-            report_dict['layer_rldl'] = {'geometrien':{}}
+        # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden      
+        handle_rl_and_dl(
+            layer_rohrleitungen,
+            layer_durchlaesse,
+            params,
+            report_dict
+        )
         feedback.setProgressText('Abgeschlossen \n ')
         log_time('Vorbereitung')
 
@@ -295,19 +264,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            pflichtfelder_i = pflichtfelder[key]
-            layer_i_felder = layer.fields().names()
-            missing_fields = [
-                feld for feld in pflichtfelder_i if not feld in layer_i_felder
-            ]
-            ereign_gew_id_field = params['ereign_gew_id_field']
-            if len(missing_fields) > 0:
-                report_dict[key]['attribute']['missing_fields'] = missing_fields
-                if key == 'gewaesser' and ereign_gew_id_field in missing_fields:
-                    params['gew_primary_key_missing'] = True
+            missing_fields_check(key, layer, report_dict, pflichtfelder, params)
+
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
+            missing_fields = report_dict[key]['attribute']['missing_fields']
+            ereign_gew_id_field = params['ereign_gew_id_field']
+
             if ereign_gew_id_field in missing_fields:
                 prim_text = 'Primärschlüssel' if key == 'gewaesser' else 'Fremdschlüssel'
                 feedback.pushWarning(
@@ -682,6 +646,19 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                         )
                         log_time((key+'_geom_sch_auf_rldl_write'))
             feedback.setProgressText('Abgeschlossen \n ')
+
+        def new_method(key, report_dict, params, layer):
+            pflichtfelder_i = pflichtfelder[key]
+            layer_i_felder = layer.fields().names()
+            missing_fields = [
+                feld for feld in pflichtfelder_i if not feld in layer_i_felder
+            ]
+            ereign_gew_id_field = params['ereign_gew_id_field']
+            if len(missing_fields) > 0:
+                report_dict[key]['attribute']['missing_fields'] = missing_fields
+                if key == 'gewaesser' and ereign_gew_id_field in missing_fields:
+                    params['gew_primary_key_missing'] = True
+            return missing_fields,ereign_gew_id_field
 
         # run test
         feedback.setProgressText('Tests fuer einzelne Layer')
