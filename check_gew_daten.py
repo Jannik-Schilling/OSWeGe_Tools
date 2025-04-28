@@ -46,7 +46,6 @@ from qgis.core import (
     QgsSpatialIndex,
     QgsWkbTypes,
 )
-from qgis import processing
 
 from .defaults import (
     list_ereign_gew_id_fields,
@@ -62,7 +61,8 @@ from .pruefungsroutinen import (
 )
 
 from .attributpruefung import (
-    missing_fields_check
+    check_missing_fields,
+    check_layer_attributes
 )
 
 from .check_gew_report import (
@@ -254,6 +254,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
             """
+            layer_key = key
             layer = params['layer_dict'][key]['layer']
             feedback.setProgressText(
                 output_layer_prefixes[key] + '-Layer \"'
@@ -264,82 +265,16 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            missing_fields_check(key, layer, report_dict, pflichtfelder, params)
-
+            check_missing_fields(key, layer, report_dict, pflichtfelder, params)
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
-            missing_fields = report_dict[key]['attribute']['missing_fields']
-            ereign_gew_id_field = params['ereign_gew_id_field']
-
-            if ereign_gew_id_field in missing_fields:
-                prim_text = 'Primärschlüssel' if key == 'gewaesser' else 'Fremdschlüssel'
-                feedback.pushWarning(
-                   'Feld \"' + ereign_gew_id_field + '\" ('
-                   + prim_text +' des Gewässers) fehlt. '
-                   + 'Der Attributtest für dieses Feld wird übersprungen'
-                )
-            else:
-                feedback.setProgressText('-- Attribute')
-                log_time((key+'_Attr'))
-                if key == 'gewaesser':
-                    list_primary_key_empty = []
-                    prim_key_dict = {}
-                    for i, feature in enumerate(layer.getFeatures()):
-                        feedback.setProgress(int((i+1) * layer_steps))
-                        if feedback.isCanceled():
-                            break
-                        ft_key = feature.attribute(ereign_gew_id_field)
-                        if ft_key in params['emptystrdef']:
-                            # fehlender Primaerschluessel
-                            list_primary_key_empty.append(feature.id())
-                        else:
-                            # mehrfache Primaerschluessel ? -> Liste an eindeutigen keys
-                            if ft_key in prim_key_dict.keys():
-                                prim_key_dict[ft_key].append(feature.id())
-                            else:
-                                prim_key_dict[ft_key] = [feature.id()]
-                    list_primary_key_duplicat = [
-                        lst for lst in prim_key_dict.values() if len(lst) > 1
-                    ]
-                    if len(list_primary_key_empty) > 0:
-                        report_dict[key]['attribute']['primary_key_empty'] = list_primary_key_empty
-                    if len(list_primary_key_duplicat) > 0:
-                        report_dict[key]['attribute']['primary_key_duplicat'] = list_primary_key_duplicat
-
-                else:  # Attributtest für Ereignisse
-                    list_gew_key_empty = []
-                    list_gew_key_invalid = []
-                    layer_gew = params['layer_dict']['gewaesser']['layer']
-                    if params['gew_primary_key_missing']:
-                        feedback.pushWarning(
-                            'Die Zuordnung der Ereignisse über den Gewässernamen kann '
-                            + 'nicht geprüft werden, weil das Feld \"'
-                            + ereign_gew_id_field
-                            + '\" im Gewässerlayer fehlt.'
-                        )
-                    else:
-                        list_gew_keys = [
-                            gew_ft.attribute(ereign_gew_id_field) for gew_ft in layer_gew.getFeatures()
-                        ]
-                        for i, feature in enumerate(layer.getFeatures()):
-                            feedback.setProgress(int((i+1) * layer_steps))
-                            if feedback.isCanceled():
-                                break
-                            ft_key = feature.attribute(ereign_gew_id_field)
-                            if ft_key in params['emptystrdef']:
-                                # fehlender Gewaesserschluessel
-                                list_gew_key_empty.append(feature.id())
-                            else:
-                                if not ft_key in list_gew_keys:
-                                    # Der angegebene Gewaesserschluessel(=Gewaessername)
-                                    # ist nicht im Gewaesserlayer vergeben
-                                    list_gew_key_invalid.append(feature.id())
-                        if len(list_gew_key_empty) > 0:
-                            report_dict[key]['attribute']['gew_key_empty'] = list_gew_key_empty
-                        if len(list_gew_key_invalid) > 0:
-                            report_dict[key]['attribute']['gew_key_invalid'] = list_gew_key_invalid
-                log_time((key+'_Attr_write'))
+            check_layer_attributes(
+                layer_key,
+                layer,
+                report_dict,
+                params
+            )
 
             # Pruefroutinen fuer Geometrien
             feedback.setProgressText('-- Geometrien')
@@ -353,6 +288,81 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             feedback.setProgressText(
                 '--- Leere und Multigeometrien, Selbstüberschneidungen'
             )
+
+
+            def check_geometry_empty_or_null(geom):
+                """
+                Diese Funktion prueft die Geometrien auf Leere, Multigeometrien und Selbstueberschneidungen
+                :param QgsGeometry geom
+                :return: bool
+                """
+                if geom.isEmpty() or geom.isNull():
+                    return True
+                else:
+                    return False
+                
+
+            def check_geometry_multi(geom, geom_empty):
+                """
+                Diese Funktion prueft auf Multigeometrien
+                :param QgsGeometry geom
+                :param bool geom_empty
+                :return: bool
+                """
+                if geom_empty:
+                    return False
+                else:
+                    if geom.isMultipart():
+                        polygeom = geom.asMultiPolyline() 
+                    else:
+                        polygeom = [f for f in geom.parts()]
+                    if len(polygeom) > 1:
+                        return True
+                    else:
+                        return False
+
+            def check_geometry_selfintersect(geom, geom_empty):
+                """
+                Diese Funktion prueft auf Selbstueberschneidungen
+                :param QgsGeometry geom
+                :param bool geom_empty
+                :return: bool
+                """
+                if geom_empty:
+                    return False
+                else:
+                    if not geom.isSimple():
+                        return True
+                    else:
+                        return False
+                
+            def check_single_geometries(layer, feedback, layer_steps):
+                """
+                Diese Funktion prueft die Geometrien auf Leere, Multigeometrien und Selbstueberschneidungen
+                :param QgsVectorLayer layer
+                :param QgsProcessingFeedback feedback
+                :param float layer_steps
+                """
+                # Listen fuer das einmalige Durchlaufen der Funktion
+                list_geom_is_empty = []
+                list_geom_is_multi = []
+                list_geom_sefintersect = []
+                for i, feature in enumerate(layer.getFeatures()):
+                    feedback.setProgress(int((i+1) * layer_steps))
+                    if feedback.isCanceled():
+                        break
+                    geom = feature.geometry()
+                    geom_empty = check_geometry_empty_or_null(geom)
+                    if geom_empty:  # Leer?
+                        list_geom_is_empty.append(feature.id())
+                    if check_geometry_multi(geom, geom_empty):  # Multi?
+                        list_geom_is_multi.append(feature.id())
+                    if check_geometry_selfintersect(geom, geom_empty):  # Selbstueberschneidungen
+                        list_geom_sefintersect.append(feature.id())
+                return list_geom_is_empty, list_geom_is_multi, list_geom_sefintersect
+
+            """
+            """
             for i, feature in enumerate(layer.getFeatures()):
                 feedback.setProgress(int((i+1) * layer_steps))
                 if feedback.isCanceled():
@@ -387,7 +397,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                     df_i = pd.DataFrame({fehl_typ: fehl_lst})
                     report_dict[key]['geometrien'][fehl_typ] = df_i 
             log_time((key+'_geom_leer_etc_write'))
-
+            
+            """
+            """
 
             feedback.setProgressText('--- Duplikate und Überschneidungen')
             if not ((key in ['rohrleitungen', 'durchlaesse']) and ('layer_rldl' in params.keys())):

@@ -31,6 +31,7 @@ def check_duplicates_crossings(
     visited_groups_crossings = set()
     visited_groups_equal = set()
     spatial_index = QgsSpatialIndex(layer.getFeatures())
+    column_names = ['id1', 'id2', 'geometry']
     for i, feature in enumerate(layer.getFeatures()):
         feedback.setProgress(int((i+1) * layer_steps))
         if feedback.isCanceled():
@@ -43,7 +44,6 @@ def check_duplicates_crossings(
             intersecting_ids = spatial_index.intersects(geom.boundingBox().buffered(0.2))
         else:
             intersecting_ids = spatial_index.intersects(geom.boundingBox())
-        column_names = ['id1', 'id2', 'geometry']
         for fid in intersecting_ids:
             if feedback.isCanceled():
                 break

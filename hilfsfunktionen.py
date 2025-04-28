@@ -128,7 +128,7 @@ def handle_rl_and_dl(
     :param dict report_dict
     """
     if layer_rohrleitungen and layer_durchlaesse:
-        layer_rldl = def merge_rl_dl(
+        layer_rldl = merge_rl_dl(
             params
         )
     
