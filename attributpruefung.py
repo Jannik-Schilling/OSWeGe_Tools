@@ -1,34 +1,31 @@
-from .hilfsfunktionen import log_time
-
-
-def get_missing_fields(layer, key, pflichtfelder):
+def get_missing_fields(layer_key, layer, pflichtfelder):
     """
     Diese Funktion prueft, ob alle Pflichtfelder vorhanden sind
+    :param str layer_key
     :param QgsVectorLayer layer
-    :param str key
     :param dict pflichtfelder
     :return: list missing_fields
     """
-    pflichtfelder_i = pflichtfelder[key]
+    pflichtfelder_i = pflichtfelder[layer_key]
     layer_i_felder = layer.fields().names()
     missing_fields = [
         feld for feld in pflichtfelder_i if not feld in layer_i_felder
     ]
     return missing_fields
 
-def check_missing_fields(key, layer, report_dict, pflichtfelder, params):
+def check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params):
     """
     Diese Funktion fuegt die fehlenden Felder in das report_dict ein
-    :param str key
+    :param str layer_key
     :param QgsVectorLayer layer
     :param dict report_dict
     :param dict pflichtfelder
     :param dict params
     """ 
-    missing_fields = get_missing_fields(layer, key, pflichtfelder)
+    missing_fields = get_missing_fields(layer_key, layer, pflichtfelder)
     ereign_gew_id_field = params['ereign_gew_id_field']
-    report_dict[key]['attribute']['missing_fields'] = missing_fields
-    if key == 'gewaesser' and ereign_gew_id_field in missing_fields:
+    report_dict[layer_key]['attribute']['missing_fields'] = missing_fields
+    if layer_key == 'gewaesser' and ereign_gew_id_field in missing_fields:
         params['gew_primary_key_missing'] = True
 
 def check_layer_attributes(
@@ -49,7 +46,6 @@ def check_layer_attributes(
         )
     else:
         feedback.setProgressText('-- Attribute')
-        log_time((layer_key+'_Attr'))
         check_primary_and_foreign_key(
             layer_key,
             layer,
@@ -58,6 +54,7 @@ def check_layer_attributes(
             params,
             feedback
         )
+
 def check_primary_and_foreign_key(
     layer_key,
     layer,
@@ -66,6 +63,15 @@ def check_primary_and_foreign_key(
     params,
     feedback
 ):
+    """
+    Pruef korrekt primary keys bei Gewaessern und foreign keys bei Ereignissen
+    :param str layer_key
+    :param QgsVectorLayer layer
+    :param str ereign_gew_id_field
+    :param dict report dict
+    :param dict params
+    :param QgsProcessingFeedback feedback
+    """
     layer_steps = params['layer_dict'][layer_key]['steps']
     if layer_key == 'gewaesser':
         list_primary_key_empty = []

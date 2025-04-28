@@ -43,21 +43,12 @@ from qgis.core import (
     QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
-    QgsSpatialIndex,
-    QgsWkbTypes,
 )
 
 from .defaults import (
     list_ereign_gew_id_fields,
     output_layer_prefixes,
-    pflichtfelder,
-)
-from .pruefungsroutinen import (
-    check_duplicates_crossings,
-    check_geometrie_wasserscheide_senke,
-    check_geom_on_line,
-    check_overlap_by_stat,
-    check_vtx_distance,
+    pflichtfelder
 )
 
 from .attributpruefung import (
@@ -65,17 +56,20 @@ from .attributpruefung import (
     check_layer_attributes
 )
 
+from .geometriepruefungen import (
+    check_single_geometries,
+    check_geoms_comparisons
+)
+
 from .check_gew_report import (
     clean_report_dict,
     create_report_dict,
     create_layers_from_report_dict,
-    replace_lst_ids,
     save_layer_to_file
 )
 
 from .hilfsfunktionen import (
     dict_log,
-    get_line_to_check,
     handle_rl_and_dl,
     log_time
 )
@@ -240,32 +234,34 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # Hauptfunktion
         def main_check(
-            key,
+            layer_key,
             report_dict,
             params,
             feedback,
             i_run
         ):
             """
-            Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte alle Layer zu pruefen (Attribute + Geometrien)
+            Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte aller Layer zu pruefen (Attribute + Geometrien)
             :param str key
             :param dict report_dict
             :param dict params
             :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
             """
-            layer_key = key
-            layer = params['layer_dict'][key]['layer']
+            key = layer_key
+            layer = params['layer_dict'][layer_key]['layer']
+            layer_steps = params['layer_dict'][layer_key]['steps']
+
             feedback.setProgressText(
                 output_layer_prefixes[key] + '-Layer \"'
                 + layer.name() + '\" (' + str(i_run+1) + '/'
                 + str(params['n_layer'])
                 + '):')
-            layer_steps = params['layer_dict'][key]['steps']
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            check_missing_fields(key, layer, report_dict, pflichtfelder, params)
+            check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params)
+            log_time(layer_key+'_Fields')
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
@@ -275,402 +271,21 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 report_dict,
                 params
             )
+            log_time((layer_key+'_Attr'))
 
             # Pruefroutinen fuer Geometrien
-            feedback.setProgressText('-- Geometrien')
-            layer_steps = params['layer_dict'][key]['steps']
-
-            # fuer alle Layer: 
-            """Diese pruefungsroutinen ggf als Funktion, um Tests zu schreiben"""
-            list_geom_is_empty = []
-            list_geom_is_multi = []
-            list_geom_sefintersect = []
-            feedback.setProgressText(
-                '--- Leere und Multigeometrien, Selbstüberschneidungen'
-            )
+            feedback.setProgressText('-- Geometrien')            
+            # fuer alle Layer: Einzelgeometrien pruefen (leer, Multigeometrien und Selbstueberschneidungen)
+            check_single_geometries(layer, layer_key, layer_steps, report_dict, feedback)
+            log_time((layer_key+'_check_single_geometries'))
 
 
-            def check_geometry_empty_or_null(geom):
-                """
-                Diese Funktion prueft die Geometrien auf Leere, Multigeometrien und Selbstueberschneidungen
-                :param QgsGeometry geom
-                :return: bool
-                """
-                if geom.isEmpty() or geom.isNull():
-                    return True
-                else:
-                    return False
-                
-
-            def check_geometry_multi(geom, geom_empty):
-                """
-                Diese Funktion prueft auf Multigeometrien
-                :param QgsGeometry geom
-                :param bool geom_empty
-                :return: bool
-                """
-                if geom_empty:
-                    return False
-                else:
-                    if geom.isMultipart():
-                        polygeom = geom.asMultiPolyline() 
-                    else:
-                        polygeom = [f for f in geom.parts()]
-                    if len(polygeom) > 1:
-                        return True
-                    else:
-                        return False
-
-            def check_geometry_selfintersect(geom, geom_empty):
-                """
-                Diese Funktion prueft auf Selbstueberschneidungen
-                :param QgsGeometry geom
-                :param bool geom_empty
-                :return: bool
-                """
-                if geom_empty:
-                    return False
-                else:
-                    if not geom.isSimple():
-                        return True
-                    else:
-                        return False
-                
-            def check_single_geometries(layer, feedback, layer_steps):
-                """
-                Diese Funktion prueft die Geometrien auf Leere, Multigeometrien und Selbstueberschneidungen
-                :param QgsVectorLayer layer
-                :param QgsProcessingFeedback feedback
-                :param float layer_steps
-                """
-                # Listen fuer das einmalige Durchlaufen der Funktion
-                list_geom_is_empty = []
-                list_geom_is_multi = []
-                list_geom_sefintersect = []
-                for i, feature in enumerate(layer.getFeatures()):
-                    feedback.setProgress(int((i+1) * layer_steps))
-                    if feedback.isCanceled():
-                        break
-                    geom = feature.geometry()
-                    geom_empty = check_geometry_empty_or_null(geom)
-                    if geom_empty:  # Leer?
-                        list_geom_is_empty.append(feature.id())
-                    if check_geometry_multi(geom, geom_empty):  # Multi?
-                        list_geom_is_multi.append(feature.id())
-                    if check_geometry_selfintersect(geom, geom_empty):  # Selbstueberschneidungen
-                        list_geom_sefintersect.append(feature.id())
-                return list_geom_is_empty, list_geom_is_multi, list_geom_sefintersect
-
-            """
-            """
-            for i, feature in enumerate(layer.getFeatures()):
-                feedback.setProgress(int((i+1) * layer_steps))
-                if feedback.isCanceled():
-                    break
-                geom = feature.geometry()
-                if geom.isEmpty() or geom.isNull():
-                    # Leer?
-                    list_geom_is_empty.append(feature.id())
-                else:
-                    # Multi?
-                    if geom.isMultipart():
-                        polygeom = geom.asMultiPolyline() 
-                    else:
-                        polygeom = [f for f in geom.parts()]
-                    if len(polygeom) > 1:
-                        list_geom_is_multi.append(feature.id())
-                # Selbstueberschneidungen
-                    if not geom.isSimple():
-                        list_geom_sefintersect.append(feature.id())
-            log_time((key+'_geom_leer_etc'))
-            # write to report dict
-            for fehl_typ, fehl_lst in zip([
-                'geom_is_empty',
-                'geom_is_multi',
-                'geom_selfintersect'
-            ],[
-                list_geom_is_empty,
-                list_geom_is_multi,
-                list_geom_sefintersect
-            ]):
-                if len(fehl_lst)>0:
-                    df_i = pd.DataFrame({fehl_typ: fehl_lst})
-                    report_dict[key]['geometrien'][fehl_typ] = df_i 
-            log_time((key+'_geom_leer_etc_write'))
-            
-            """
-            """
-
+            # Geometrien pruefen durch Vergleich mit anderen Geometrien
             feedback.setProgressText('--- Duplikate und Überschneidungen')
-            if not ((key in ['rohrleitungen', 'durchlaesse']) and ('layer_rldl' in params.keys())):
-                # Normalfall
-                df_geom_crossings, df_geom_duplicate = check_duplicates_crossings(
-                    layer,
-                    feedback,
-                    layer_steps
-                )
-                log_time((key+'_geom_dup_cro'))
-                if len(df_geom_crossings) > 0:
-                    report_dict[key]['geometrien']['geom_crossings'] = df_geom_crossings
-                if len(df_geom_duplicate) > 0:
-                    report_dict[key]['geometrien']['geom_duplicate'] = df_geom_duplicate
-                log_time((key+'_geom_dup_cro_write'))
-            else:
-                if not params['layer_rldl']['runs']['check_duplicates_crossings']:  # falls es nicht schon einmal durchlaufen wurde
-                    layer_rldl = params['layer_rldl']['layer']
-                    layer_steps_rldl = 100/layer_rldl.featureCount()
-                    df_geom_crossings, df_geom_duplicate = check_duplicates_crossings(
-                        layer_rldl,
-                        feedback,
-                        layer_steps_rldl
-                    )
-                    log_time((key+'_geom_dup_cro_rldl'))
-                    dict_alternative_id = {
-                        feature.id(): feature[params['field_merged_id']] for feature in layer_rldl.getFeatures()
-                    }
-                    
-                    # Ersetzen der IDs des Layers rl_dl durch die urspruenglichen (layer RL und layer DL) 
-                    df_geom_crossings_adjusted = df_geom_crossings.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
-                    df_geom_duplicate_adjusted = df_geom_duplicate.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
-
-                    if len(df_geom_crossings_adjusted) > 0:
-                        report_dict['layer_rldl']['geometrien']['geom_crossings'] = df_geom_crossings_adjusted
-                    if len(df_geom_duplicate_adjusted) > 0:
-                        report_dict['layer_rldl']['geometrien']['geom_duplicate'] = df_geom_duplicate_adjusted
-                    params['layer_rldl']['runs']['check_duplicates_crossings'] = True
-                    log_time((key+'_geom_dup_cro_rldl_write'))
-
-
-            if key == 'gewaesser':
-                feedback.setProgressText('--- Wasserscheiden, Senken')
-                # Listen fuer das einmalige Durchlaufen der Funktion
-                visited_features_wassersch = []
-                visited_features_senken = []
-                # Listen fuer die Ergebnisse
-                list_geom_wassersch = []
-                list_geom_senken = []
-                # Da Objekte im Gew.-Layer gesucht werden, ist der andere 
-                # Spatial Index auch der des Gewaesserlayers
-                spatial_index_other = QgsSpatialIndex(layer.getFeatures())
-                for i, feature in enumerate(layer.getFeatures()):
-                    feedback.setProgress(int((i+1) * layer_steps))
-                    if feedback.isCanceled():
-                        break
-                    geom = feature.geometry()
-                    feature_id = feature.id()
-                    if geom:
-                        if not feature_id in visited_features_wassersch:
-                            wasserscheiden = check_geometrie_wasserscheide_senke(
-                                geom,
-                                feature_id,
-                                layer,
-                                spatial_index_other
-                            )
-                            if wasserscheiden:
-                                list_geom_wassersch.append(wasserscheiden)
-                                visited_features_wassersch = list(
-                                    set(visited_features_wassersch + wasserscheiden[:-1][0])  # die Geometrie wird nicht eingetragen
-                                )
-                        if not feature_id in visited_features_senken:
-                            senken = check_geometrie_wasserscheide_senke(
-                                geom,
-                                feature_id,
-                                layer,
-                                spatial_index_other,
-                                senke=True
-                            )
-                            if senken:
-                                list_geom_senken.append(senken)
-                                visited_features_senken = list(
-                                    set(visited_features_senken + senken[:-1][0])  # die Geometrie wird nicht eingetragen
-                                )
-                log_time((key+'_geom_wassersc'))
-                if len(list_geom_wassersch) > 0:
-                    report_dict[key]['geometrien']['wasserscheiden'] = pd.DataFrame(list_geom_wassersch, columns = ['feature_id','geometry'])
-                if len(list_geom_wassersch) > 0:
-                    report_dict[key]['geometrien']['senken'] = pd.DataFrame(list_geom_senken, columns = ['feature_id','geometry'])
-                log_time((key+'_geom_wassersc_write'))
-
-            else:  # Ereignisse
-                layer_gew = params['layer_dict']['gewaesser']['layer']
-                spatial_index_other = QgsSpatialIndex(layer_gew.getFeatures())
-                if not ((key in ['rohrleitungen', 'durchlaesse']) and ('layer_rldl' in params.keys())):
-                    # Normalfall
-                    key_temp = key
-                    layer_temp = layer
-                    layer_step_temp = layer_steps
-                    normal_case = True
-                else:
-                    # Durchlauf mit rldl
-                    key_temp = 'layer_rldl'
-                    layer_temp = params['layer_rldl']['layer']
-                    layer_step_temp = 100/layer_temp.featureCount()
-                    normal_case = False
-                if normal_case or (not params['layer_rldl']['runs']['check_geom_ereign_auf_gew']):  # Falls normal oder noch nicht durchlaufen
-                    feedback.setProgressText('--- Korrekte Lage von Ereignissen auf Gewässern')
-                    list_vtx_bericht = []
-                    if not normal_case:
-                        # Setze den Parameter auf True, damit der Test 
-                        # nicht noch einmal mit rldl durchlaufen wird:
-                        params['layer_rldl']['runs']['check_geom_ereign_auf_gew'] = True
-                    for i, feature in enumerate(layer_temp.getFeatures()):
-                        if feedback.isCanceled():
-                            break
-                        feedback.setProgress(int((i+1) * layer_step_temp))
-                        if normal_case:
-                            feature_id_temp = feature.id()
-                        else:
-                            feature_id_temp = feature[params['field_merged_id']]  # id + layername
-                        geom = feature.geometry()
-                        if not geom:
-                            pass
-                        elif feature_id_temp in list_geom_is_multi: 
-                            pass
-                        else:
-                            series_vtx_bericht = pd.Series()
-                            #Linie / Punkt auf Gewaesserlinie ?
-                            if layer_temp.geometryType() == QgsWkbTypes.PointGeometry:  # Point
-                                series_vtx_bericht['feature_id'] = feature_id_temp
-                                line_feature = get_line_to_check(geom, layer_gew, spatial_index_other)
-                                if line_feature:
-                                    if not check_vtx_distance(geom, line_feature.geometry()):
-                                        # Distanz zum naechsten Gewaesser zu gross
-                                        series_vtx_bericht['Lage'] = 1
-                                    else:
-                                        # korrekt
-                                        series_vtx_bericht['Lage'] = 0  # hier spaeter noch die Stationierung
-                                else:
-                                    # kein Gewaesser in der Naehe gefunden
-                                    series_vtx_bericht['Lage'] = 1
-                            else:  # Line
-                                series_vtx_bericht = check_geom_on_line(
-                                    geom,
-                                    feature_id_temp,
-                                    layer_gew,
-                                    spatial_index_other,
-                                    with_stat=True
-                                )
-                                series_vtx_bericht['feature_id'] = feature_id_temp
-                            series_vtx_bericht['geometry'] = geom
-                        list_vtx_bericht = list_vtx_bericht + [series_vtx_bericht]
-                    #### TODO sort, so dass geometry hinten ist
-                    report_dict[key_temp]['geometrien']['geom_ereign_auf_gew'] = pd.DataFrame(list_vtx_bericht)
-                log_time((key+'_geom_auf_gew'))
-
-                # Ueberlappungsanalyse (nur bei Linien)
-                if not layer_temp.geometryType() == QgsWkbTypes.PointGeometry:  
-                    if normal_case or (not params['layer_rldl']['runs']['check_overlap_by_stat']):
-                        feedback.setProgressText('--- Überlappungen')
-                        if not normal_case:
-                            # Setze den Parameter auf True, damit der Test 
-                            # nicht noch einmal mit rldl durchlaufen wird:
-                            params['layer_rldl']['runs']['check_overlap_by_stat'] = True
-                        list_overlap = check_overlap_by_stat(params, report_dict, layer_step_temp)
-                        if len(list_overlap) > 0:
-                            df_overlap = pd.DataFrame(list_overlap, columns = ['id1', 'id2', 'geometry'])    
-                            report_dict[key_temp]['geometrien']['geom_overlap'] = df_overlap
-                log_time((key+'_geom_ueberlappungen'))
-
-                # Liegen Schaechte korrekt auf RL oder DL?
-                if key == 'schaechte':
-                    if 'layer_rldl' in params.keys():
-                        other_layer = params['layer_rldl']['layer']
-                    elif 'rohrleitungen' in report_dict.keys():
-                        other_layer = params['layer_dict']['rohrleitungen']['layer']
-                    elif 'durchlaesse' in report_dict.keys():
-                        other_layer = params['layer_dict']['durchlaesse']['layer']
-                    else:
-                        other_layer = None
-                    if not other_layer:
-                        feedback.pushWarning(
-                            ' (Prüfung der Lage von Schächten an/auf '
-                            + 'Rohrleitungen und Durchlässen wird übersprungen: '
-                            + 'Kein(e) Layer für Rohrleitungen und Durchlässe)'
-                        )
-                    else:
-                        spatial_index_other =  QgsSpatialIndex(other_layer.getFeatures())
-                        feedback.setProgressText(
-                            '--- Korrekte Lage von Schächten an/auf '
-                            + 'Rohrleitungen und Durchlässen'
-                        )
-                        list_schacht_rldl = []
-                        
-                        # Der DataFrame mit der Lageueberpruefung der Schaechte auf dem Gewaesser
-                        df_schacht_auf_gw = (
-                            report_dict
-                                [key]
-                                ['geometrien']
-                                ['geom_ereign_auf_gew']
-                        )
-
-                        # Nun fuer jeden Schacht pruefen
-                        for i, feature in enumerate(layer.getFeatures()):
-                            # Feedback
-                            feedback.setProgress(int((i+1) * layer_steps))
-                            if feedback.isCanceled():
-                                break
-                            
-                            # Objektgeometrie und ID:
-                            geom = feature.geometry()
-                            feature_id = feature.id()
-                            
-                            # Multi- oder Leetre Geometrien koennen nicht ueberprueft werden
-                            if (not geom) or feature_id in list_geom_is_multi:
-                                continue
-                                
-                            # Die Rohrleitung oder der Durchlass, auf dem der Schacht liegen soll:
-                            line_feature = get_line_to_check(geom, other_layer, spatial_index_other)
-                            if line_feature:
-                                schacht_auf_rldl = check_vtx_distance(
-                                    geom,
-                                    line_feature.geometry()
-                                )
-                            else:
-                                schacht_auf_rldl = False
-                                
-                            
-                            fehler_auf_gew = df_schacht_auf_gw.loc[
-                                df_schacht_auf_gw[
-                                    'feature_id']==feature_id,
-                                    'Lage'
-                            ].values[0]
-                            if schacht_auf_rldl and (not fehler_auf_gew):
-                                # korrekt
-                                pass
-                            elif (not fehler_auf_gew) and (not schacht_auf_rldl):
-                                # Fehler: schacht auf offenem gewaesser
-                                list_schacht_rldl = list_schacht_rldl + [[feature_id, 1, geom]]
-                            elif fehler_auf_gew and schacht_auf_rldl:
-                                # Fehler: rldl verschoben
-                                list_schacht_rldl = list_schacht_rldl + [[feature_id, 2, geom]]
-                            else:
-                                # Fehler: schacht weder auf gewaesser noch auf rldl
-                                list_schacht_rldl = list_schacht_rldl + [[feature_id, 3, geom]]
-                        log_time((key+'_geom_sch_auf_rldl'))
-                        
-                        # Das Ergebnis als DataFrame in report_dict ablegen
-                        report_dict[key]['geometrien']['geom_schacht_auf_rldl'] = pd.DataFrame(
-                            list_schacht_rldl, columns = [
-                                'feature_id',
-                                'Lage_rldl',
-                                'geometry'
-                            ]
-                        )
-                        log_time((key+'_geom_sch_auf_rldl_write'))
+            check_geoms_comparisons()
+            log_time((key+'_geom_comp_others'))        
             feedback.setProgressText('Abgeschlossen \n ')
 
-        def new_method(key, report_dict, params, layer):
-            pflichtfelder_i = pflichtfelder[key]
-            layer_i_felder = layer.fields().names()
-            missing_fields = [
-                feld for feld in pflichtfelder_i if not feld in layer_i_felder
-            ]
-            ereign_gew_id_field = params['ereign_gew_id_field']
-            if len(missing_fields) > 0:
-                report_dict[key]['attribute']['missing_fields'] = missing_fields
-                if key == 'gewaesser' and ereign_gew_id_field in missing_fields:
-                    params['gew_primary_key_missing'] = True
-            return missing_fields,ereign_gew_id_field
 
         # run test
         feedback.setProgressText('Tests fuer einzelne Layer')

@@ -228,3 +228,35 @@ def linie_verlaengern(
     else:
         raise QgsProcessingException(f'zu viele Schnittpunkte beim Verlängern mit Gew. 2. Ordnung: {intersecting_ids}')
         return (False, )
+
+def ranges_overlap(range1, range2):
+    """
+    Ueberprueft, ob sich zwei Ranges ueberschneiden (f0, f1).
+    :param list range1
+    :param list range2
+    """
+    id1, f0_1, f1_1, geom1 = range1
+    id2, f0_2, f1_2, geom2 = range2
+    if f0_1 < f1_2 and f0_2 < f1_1:
+        return [id1, id2, geom1]
+    
+def sub_line_by_stats(
+    line_geom,
+    stat_start,
+    stat_end
+):
+    """
+    Erstellt einen Linienteil anhand zweier Stationierungen (Start, Ende)
+    :param QgsGeometry line_geom
+    :param float stat_start
+    :param float stat_end
+    :return: QgsGeometry or None if line_geom is mulitpart
+    """
+    line_parts = line_geom.parts()
+    if len(line_parts) > 1:
+        pass  # create warnong or raise error
+    line_part_0 = line_parts[0]
+    #if line_part_0.length() < stat_end:
+    #    pass  # create warnong or raise error
+    sub_line = line_part_0.curveSubstring(stat_start , stat_end)
+    return sub_line
