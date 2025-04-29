@@ -13,30 +13,30 @@ def get_missing_fields(layer_key, layer, pflichtfelder):
     ]
     return missing_fields
 
-def check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params):
+def check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params_processing):
     """
     Diese Funktion fuegt die fehlenden Felder in das report_dict ein
     :param str layer_key
     :param QgsVectorLayer layer
     :param dict report_dict
     :param dict pflichtfelder
-    :param dict params
+    :param dict params_processing
     """ 
     missing_fields = get_missing_fields(layer_key, layer, pflichtfelder)
-    ereign_gew_id_field = params['ereign_gew_id_field']
+    ereign_gew_id_field = params_processing['ereign_gew_id_field']
     report_dict[layer_key]['attribute']['missing_fields'] = missing_fields
     if layer_key == 'gewaesser' and ereign_gew_id_field in missing_fields:
-        params['gew_primary_key_missing'] = True
+        params_processing['gew_primary_key_missing'] = True
 
 def check_layer_attributes(
     layer_key,
     layer,
     report_dict,
-    params
+    params_processing
 ):
     missing_fields = report_dict[layer_key]['attribute']['missing_fields']
-    ereign_gew_id_field = params['ereign_gew_id_field']
-    feedback = params['feedback']
+    ereign_gew_id_field = params_processing['ereign_gew_id_field']
+    feedback = params_processing['feedback']
     if ereign_gew_id_field in missing_fields:
         prim_text = 'Primärschlüssel' if layer_key == 'gewaesser' else 'Fremdschlüssel'
         feedback.pushWarning(
@@ -51,7 +51,7 @@ def check_layer_attributes(
             layer,
             ereign_gew_id_field,
             report_dict,
-            params,
+            params_processing,
             feedback
         )
 
@@ -60,7 +60,7 @@ def check_primary_and_foreign_key(
     layer,
     ereign_gew_id_field,
     report_dict,
-    params,
+    params_processing,
     feedback
 ):
     """
@@ -69,10 +69,10 @@ def check_primary_and_foreign_key(
     :param QgsVectorLayer layer
     :param str ereign_gew_id_field
     :param dict report dict
-    :param dict params
+    :param dict params_processing
     :param QgsProcessingFeedback feedback
     """
-    layer_steps = params['layer_dict'][layer_key]['steps']
+    layer_steps = params_processing['layer_dict'][layer_key]['steps']
     if layer_key == 'gewaesser':
         list_primary_key_empty = []
         prim_key_dict = {}
@@ -81,7 +81,7 @@ def check_primary_and_foreign_key(
             if feedback.isCanceled():
                 break
             ft_key = feature.attribute(ereign_gew_id_field)
-            if ft_key in params['emptystrdef']:
+            if ft_key in params_processing['emptystrdef']:
                 # fehlender Primaerschluessel
                 list_primary_key_empty.append(feature.id())
             else:
@@ -101,8 +101,8 @@ def check_primary_and_foreign_key(
     else:  # Attributtest für Ereignisse
         list_gew_key_empty = []
         list_gew_key_invalid = []
-        layer_gew = params['layer_dict']['gewaesser']['layer']
-        if params['gew_primary_key_missing']:
+        layer_gew = params_processing['layer_dict']['gewaesser']['layer']
+        if params_processing['gew_primary_key_missing']:
             feedback.pushWarning(
                 'Die Zuordnung der Ereignisse über den Gewässernamen kann '
                 + 'nicht geprüft werden, weil das Feld \"'
@@ -118,7 +118,7 @@ def check_primary_and_foreign_key(
                 if feedback.isCanceled():
                     break
                 ft_key = feature.attribute(ereign_gew_id_field)
-                if ft_key in params['emptystrdef']:
+                if ft_key in params_processing['emptystrdef']:
                     # fehlender Gewaesserschluessel
                     list_gew_key_empty.append(feature.id())
                 else:

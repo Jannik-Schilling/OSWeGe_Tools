@@ -11,7 +11,10 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from qgis.PyQt.QtCore import QVariant
+try:
+    from qgis.PyQt.QtCore import QMetaType
+except BaseException:
+    from qgis.PyQt.QtCore import QVariant
 
 from .defaults import (
     dict_report_texts,
@@ -22,7 +25,7 @@ from .defaults import (
 from .hilfsfunktionen import get_geom_type
 
 
-def create_report_dict(params, is_test_version=False):
+def create_report_dict(params_processing, is_test_version=False):
     """
     Erstellt das Dictionary, dass alle Informationen fuer den Bericht enthaelt
     Aufbau:     
@@ -54,7 +57,7 @@ def create_report_dict(params, is_test_version=False):
             }
         }
     }
-    :param dict params: ein Dictionary mit allen wichtigen Parametern fuer die Pruefungsroutine
+    :param dict params_processing: ein Dictionary mit allen wichtigen Parametern fuer die Pruefungsroutine
     :param bool is_test_version: True, wenn die Funktion in einer Testversion laeuft und ein entsprechender Hinweis in die Datei geschrieben wird
     :return: dict
     """
@@ -66,12 +69,12 @@ def create_report_dict(params, is_test_version=False):
             + 'nur die Feature-Ids der fehlerhaften Objekte sowie einen '
             + 'Verweis auf die Fehlerart als (numerischer) Code'
         )
-    for key, value in params['layer_dict'].items():
+    for key, value in params_processing['layer_dict'].items():
         layer = value['layer']
         # Anzahl Objekte fuer das Feedback
         ft_count = layer.featureCount() if layer.featureCount() else 0
         layer_steps = 100.0/ft_count if ft_count != 0 else 0
-        params['layer_dict'][key].update({
+        params_processing['layer_dict'][key].update({
             'count': ft_count,
             'steps': layer_steps
         })
@@ -324,8 +327,11 @@ def create_layer_from_df(
     )
     vector_layer.startEditing()
     for  column_name in layer_fields:
+        try:
         # QgsField is deprecated since QGIS 3.38 -> QMetaType
-        vector_layer.addAttribute(QgsField(column_name, QVariant.String))
+            vector_layer.addAttribute(QgsField(column_name, QMetaType.Type.QString,))
+        except:  # fuer aeltere QGIS Versionen (vermutl. vor 3.8)
+            vector_layer.addAttribute(QgsField(column_name, QVariant.String))
     vector_layer.updateFields()
 
     # Objekte 
@@ -392,9 +398,8 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                             )
                             vector_layer_list = vector_layer_list+[layer_neu]
     return vector_layer_list, list_messages
-    
-    
-    
+
+
 def save_layer_to_file(
     vector_layer_list,
     fname
@@ -424,7 +429,7 @@ def save_layer_to_file(
                 transform_context,
                 options
             )
-    except BaseException:        # for older QGIS versions
+    except BaseException:  # for older QGIS versions
         for v_layer in vector_layer_list:
             fname_layer = fname+'|layername='+v_layer.name()
             QgsVectorFileWriter.writeAsVectorFormat(

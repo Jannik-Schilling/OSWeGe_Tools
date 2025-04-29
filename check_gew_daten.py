@@ -57,8 +57,8 @@ from .attributpruefung import (
 )
 
 from .geometriepruefungen import (
-    check_single_geometries,
-    check_geoms_comparisons
+    handle_tests_single_geometries,
+    handle_tests_geoms_comparisons
 )
 
 from .check_gew_report import (
@@ -170,9 +170,10 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
         
-        if os.path.isfile(reportdatei):
-            raise QgsProcessingException('Die Datei '+reportdatei
-            + ' existiert bereits. Bitte einen anderen Dateinamen wählen.')
+        if not is_test_version:
+            if os.path.isfile(reportdatei):
+                raise QgsProcessingException('Die Datei '+reportdatei
+                + ' existiert bereits. Bitte einen anderen Dateinamen wählen.')
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
         feedback.setProgressText('Vorbereitung der Tests')
@@ -207,8 +208,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             )
 
         # Dictionary fuer immer wiederkehrende Parameter
-        params = {
-            'layer_dict': layer_dict,  # zu pruefende Parameter
+        params_processing = {
+            'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
             'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
             'gew_primary_key_missing': False,
@@ -218,25 +219,25 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
-        report_dict = create_report_dict(params)
-
+        report_dict = create_report_dict(params_processing)
 
         # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden      
         handle_rl_and_dl(
             layer_rohrleitungen,
             layer_durchlaesse,
-            params,
+            params_processing,
             report_dict
         )
         feedback.setProgressText('Abgeschlossen \n ')
         log_time('Vorbereitung')
 
+        print(params_processing)
 
         # Hauptfunktion
         def main_check(
             layer_key,
             report_dict,
-            params,
+            params_processing,
             feedback,
             i_run
         ):
@@ -244,23 +245,23 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte aller Layer zu pruefen (Attribute + Geometrien)
             :param str key
             :param dict report_dict
-            :param dict params
+            :param dict params_processing
             :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
             """
             key = layer_key
-            layer = params['layer_dict'][layer_key]['layer']
-            layer_steps = params['layer_dict'][layer_key]['steps']
+            layer = params_processing['layer_dict'][layer_key]['layer']
+            layer_steps = params_processing['layer_dict'][layer_key]['steps']
 
             feedback.setProgressText(
                 output_layer_prefixes[key] + '-Layer \"'
                 + layer.name() + '\" (' + str(i_run+1) + '/'
-                + str(params['n_layer'])
+                + str(params_processing['n_layer'])
                 + '):')
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params)
+            check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params_processing)
             log_time(layer_key+'_Fields')
 
             # Pruefroutinen fuer Attribute
@@ -269,21 +270,26 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 layer_key,
                 layer,
                 report_dict,
-                params
+                params_processing
             )
             log_time((layer_key+'_Attr'))
 
             # Pruefroutinen fuer Geometrien
-            feedback.setProgressText('-- Geometrien')            
+            feedback.setProgressText('-- Geometrien')
             # fuer alle Layer: Einzelgeometrien pruefen (leer, Multigeometrien und Selbstueberschneidungen)
-            check_single_geometries(layer, layer_key, layer_steps, report_dict, feedback)
-            log_time((layer_key+'_check_single_geometries'))
+            handle_tests_single_geometries(
+                layer,
+                layer_key,
+                layer_steps,
+                report_dict,
+                feedback
+            )
+            log_time((layer_key+'_handle_tests_single_geometries'))
 
 
             # Geometrien pruefen durch Vergleich mit anderen Geometrien
-            feedback.setProgressText('--- Duplikate und Überschneidungen')
-            check_geoms_comparisons()
-            log_time((key+'_geom_comp_others'))        
+            handle_tests_geoms_comparisons(layer_key, report_dict, params_processing)
+            log_time((key+'_geom_comp_others'))
             feedback.setProgressText('Abgeschlossen \n ')
 
 
@@ -296,7 +302,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 main_check(
                     key,
                     report_dict,
-                    params,
+                    params_processing,
                     feedback,
                     i
                 )

@@ -252,11 +252,70 @@ def sub_line_by_stats(
     :param float stat_end
     :return: QgsGeometry or None if line_geom is mulitpart
     """
-    line_parts = line_geom.parts()
+    line_parts = [f for f in line_geom.parts()]
     if len(line_parts) > 1:
-        pass  # create warnong or raise error
+        print(line_parts)  # TODO: create warning or raise error
     line_part_0 = line_parts[0]
     #if line_part_0.length() < stat_end:
     #    pass  # create warnong or raise error
     sub_line = line_part_0.curveSubstring(stat_start , stat_end)
     return sub_line
+
+
+# Setup fuer Tests
+def setup_localparams_for_tests_with_comparisons(
+    layer_key,
+    params_processing
+):
+    """
+    Bereitet die Tests fuer Vergleiche mit anderen Geometrie-Objekten vor
+    :param str layer_key
+    :param dict params_processing
+    :return: dict
+    """
+    temp_key = layer_key
+    temp_layer = params_processing['layer_dict'][temp_key]['layer']
+    temp_layer_steps = params_processing['layer_dict'][layer_key]['steps']
+    use_field_merged_id = False
+    skip_dict = {
+        # Vergleiche innerhalb eines Layers
+        'skip_geom_duplicates_crossings': False,
+        'skip_geom_overlap': True,
+        'skip_geom_wasserscheiden_senken': True,
+        # Vergleiche mit anderen Layern
+        'skip_geom_ereign_auf_gew': False,
+        'skip_geom_schacht_auf_rldl': True
+    }
+    if layer_key == 'gewaesser':
+        skip_dict['skip_geom_wasserscheiden_senken'] = False
+        skip_dict['skip_geom_ereign_auf_gew'] = True
+    if layer_key in ['rohrleitungen', 'durchlaesse']:
+        skip_dict['skip_geom_overlap'] = False
+        if 'layer_rldl' in params_processing.keys():  # beide vorhanden
+            temp_key = 'layer_rldl'
+            temp_layer = params_processing[temp_key]['layer']
+            temp_layer_steps = 100/temp_layer.featureCount()
+            use_field_merged_id = True
+            if params_processing['layer_rldl']['runs']['check_duplicates_crossings']:
+                # falls der Test schon einmal mit rldl durchlaufen wurde
+                skip_dict['skip_geom_duplicates_crossings'] = True
+            else:
+                # Setze den Parameter auf True, damit der Test nicht noch einmal mit rldl durchlaufen wird
+                params_processing['layer_rldl']['runs']['check_duplicates_crossings'] = True
+            if params_processing['layer_rldl']['runs']['check_overlap_by_stat']:
+                # falls der Test schon einmal mit rldl durchlaufen wurde
+                skip_dict['skip_geom_overlap'] = True
+            else:
+                # Setze den Parameter auf True, damit der Test nicht noch einmal mit rldl durchlaufen wird
+                params_processing['layer_rldl']['runs']['check_overlap_by_stat'] = True
+            if params_processing['layer_rldl']['runs']['check_geom_ereign_auf_gew']:
+                skip_dict['skip_geom_ereign_auf_gew'] = True
+            else:
+                params_processing['layer_rldl']['runs']['check_geom_ereign_auf_gew'] = True
+    if layer_key == 'schaechte':
+        skip_dict['skip_geom_schacht_auf_rldl'] = False
+        if not (('rohrleitungen' in params_processing['layer_dict'].keys()) or ('durchlaesse' in params_processing['layer_dict'].keys())):
+            skip_dict['skip_geom_schacht_auf_rldl'] = True
+    if layer_key == 'wehre':
+        pass
+    return temp_key, temp_layer, temp_layer_steps, skip_dict, use_field_merged_id
