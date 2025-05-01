@@ -41,7 +41,8 @@ def get_vtx(line_geom, vtx_index):
     :return QgsGeometry
     """
     if line_geom.isMultipart():
-        pt = QgsPoint(line_geom.asMultiPolyline()[vtx_index][vtx_index])
+        vtx_lst = [vtx for lst in line_geom.asMultiPolyline() for vtx in lst]
+        pt = QgsPoint(vtx_lst[vtx_index])
     else: 
         pt = QgsPoint(line_geom.asPolyline()[vtx_index])
     return QgsGeometry(pt)

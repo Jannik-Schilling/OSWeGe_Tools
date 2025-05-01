@@ -214,52 +214,67 @@ def handle_tests_compare_in_own_layer(
     # Wasserscheiden und Senken
     if not skip_dict['skip_geom_wasserscheiden_senken']:
         feedback.setProgressText('--- Wasserscheiden, Senken')
-        # Listen fuer das einmalige Durchlaufen der Funktion
-        visited_features_wassersch = []
-        visited_features_senken = []
-        # Listen fuer die Ergebnisse
-        list_geom_wassersch = []
-        list_geom_senken = []
-        # Da Objekte im Gew.-Layer gesucht werden, ist der andere 
-        # Spatial Index auch der des Gewaesserlayers
-        spatial_index_other = QgsSpatialIndex(layer.getFeatures())
-        for i, feature in enumerate(layer.getFeatures()):
-            feedback.setProgress(int((i+1) * layer_steps))
-            if feedback.isCanceled():
-                break
-            geom = feature.geometry()
-            feature_id = feature.id()
-            if geom:
-                if not feature_id in visited_features_wassersch:
-                    wasserscheiden = check_geometrie_wasserscheide_senke(
-                        geom,
-                        feature_id,
-                        layer,
-                        spatial_index_other
-                    )
-                    if wasserscheiden:
-                        list_geom_wassersch.append(wasserscheiden)
-                        visited_features_wassersch = list(
-                            set(visited_features_wassersch + wasserscheiden[:-1][0])  # die Geometrie wird nicht eingetragen
-                        )
-                if not feature_id in visited_features_senken:
-                    senken = check_geometrie_wasserscheide_senke(
-                        geom,
-                        feature_id,
-                        layer,
-                        spatial_index_other,
-                        senke=True
-                    )
-                    if senken:
-                        list_geom_senken.append(senken)
-                        visited_features_senken = list(
-                            set(visited_features_senken + senken[:-1][0])  # die Geometrie wird nicht eingetragen
-                        )
+        list_geom_wassersch, list_geom_senken = handle_wassersch_senken(
+            layer,
+            layer_steps,
+            feedback
+        )
         if len(list_geom_wassersch) > 0:
             report_dict[layer_key]['geometrien']['wasserscheiden'] = pd.DataFrame(list_geom_wassersch, columns = ['feature_id','geometry'])
         if len(list_geom_wassersch) > 0:
             report_dict[layer_key]['geometrien']['senken'] = pd.DataFrame(list_geom_senken, columns = ['feature_id','geometry'])
 
+
+def handle_wassersch_senken(layer, layer_steps, feedback):
+    """
+    Handles the detection of watersheds and sinks in the given layer.
+    :param QgsVectorLayer layer: The layer to process.
+    :param float layer_steps: Progress steps for feedback.
+    :param QgsProcessingFeedback feedback: Feedback object for progress reporting.
+    :return: tuple (list_geom_wassersch, list_geom_senken)
+    """
+    # Listen fuer das einmalige Durchlaufen der Funktion
+    visited_features_wassersch = []
+    visited_features_senken = []
+    # Listen fuer die Ergebnisse
+    list_geom_wassersch = []
+    list_geom_senken = []
+    # Da Objekte im Gew.-Layer gesucht werden, ist der andere 
+    # Spatial Index auch der des Gewaesserlayers
+    spatial_index_other = QgsSpatialIndex(layer.getFeatures())
+    for i, feature in enumerate(layer.getFeatures()):
+        feedback.setProgress(int((i+1) * layer_steps))
+        if feedback.isCanceled():
+            break
+        geom = feature.geometry()
+        feature_id = feature.id()
+        if geom:
+            if feature_id not in visited_features_wassersch:
+                wasserscheiden = check_geometrie_wasserscheide_senke(
+                    geom,
+                    feature_id,
+                    layer,
+                    spatial_index_other
+                )
+                if wasserscheiden:
+                    list_geom_wassersch.append(wasserscheiden)
+                    visited_features_wassersch = list(
+                        set(visited_features_wassersch + wasserscheiden[:-1][0])  # die Geometrie wird nicht eingetragen
+                    )
+            if feature_id not in visited_features_senken:
+                senken = check_geometrie_wasserscheide_senke(
+                    geom,
+                    feature_id,
+                    layer,
+                    spatial_index_other,
+                    senke=True
+                )
+                if senken:
+                    list_geom_senken.append(senken)
+                    visited_features_senken = list(
+                        set(visited_features_senken + senken[:-1][0])  # die Geometrie wird nicht eingetragen
+                    )
+    return list_geom_wassersch, list_geom_senken
 
 def check_duplicates_crossings(
     layer,
