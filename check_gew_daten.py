@@ -69,9 +69,8 @@ from .check_gew_report import (
 )
 
 from .hilfsfunktionen import (
-    dict_log,
-    handle_rl_and_dl,
-    log_time
+    simpleTimeStepLogger,
+    handle_rl_and_dl
 )
 
 class checkGewaesserDaten(QgsProcessingAlgorithm):
@@ -159,8 +158,10 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         Hier findet die Verarbeitung statt
         """
         # Festlegung für Tests 
+        timeLogger = simpleTimeStepLogger()
+        timeLogger.start_logging()
         test_output_all = False  # Ueberspringt das bereinigen des report_dict, wenn True
-        is_test_version = False  # Hinweis zum Output, Ausgabe der Zeiten, wenn True
+        is_test_version = True  # Hinweis zum Output, Ausgabe der Zeiten, wenn True
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
@@ -177,7 +178,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
         feedback.setProgressText('Vorbereitung der Tests')
-        log_time('Vorbereitung der Tests', is_start=True)
         layer_dict = {}
         list_crs = []
         list_layer_types = [
@@ -229,9 +229,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             report_dict
         )
         feedback.setProgressText('Abgeschlossen \n ')
-        log_time('Vorbereitung')
+        timeLogger.log_time('Vorbereitung')
 
-        print(params_processing)
 
         # Hauptfunktion
         def main_check(
@@ -262,7 +261,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
             check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params_processing)
-            log_time(layer_key+'_Fields')
+            timeLogger.log_time(layer_key+'_Fields')
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
@@ -272,7 +271,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 report_dict,
                 params_processing
             )
-            log_time((layer_key+'_Attr'))
+            timeLogger.log_time(layer_key+'_Attr')
 
             # Pruefroutinen fuer Geometrien
             feedback.setProgressText('-- Geometrien')
@@ -284,12 +283,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 report_dict,
                 feedback
             )
-            log_time((layer_key+'_handle_tests_single_geometries'))
+            timeLogger.log_time((layer_key+'_handle_tests_single_geometries'))
 
 
             # Geometrien pruefen durch Vergleich mit anderen Geometrien
             handle_tests_geoms_comparisons(layer_key, report_dict, params_processing)
-            log_time((key+'_geom_comp_others'))
+            timeLogger.log_time((key+'_geom_comp_others'))
             feedback.setProgressText('Abgeschlossen \n ')
 
 
@@ -329,13 +328,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             feedback.setProgressText('Speichere Layer in Datei...')
             save_layer_to_file(vector_layer_list, reportdatei)   
             feedback.setProgressText('Abgeschlossen \n ')     
-            log_time('WriteLayer')
+            timeLogger.log_time('WriteLayer')
         
         
         if is_test_version:
             feedback.setProgressText(' \nDauer der Schritte:')
-            timing_txt = [str(k)+': '+str(v) for k, v in dict_log.items() if k != 'current']
+            timing_txt = timeLogger.report_time_logs()
             feedback.setProgressText('\n'.join(timing_txt))
+        del timeLogger
         
         # 3 Feedback
         if self.newer_qgis_version:

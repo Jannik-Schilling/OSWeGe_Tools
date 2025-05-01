@@ -17,18 +17,41 @@ from .defaults import (
 
 
 # Zeitlogger
-dict_log = {}
-def log_time(stepname, is_start=False):
+class simpleTimeStepLogger:
     """
-    Schreibt die Zeiten der einzelnen Schritte mit
-    :param str stepname
-    :param bool is_start
+    Ein Zeitlogger für alle Schritte
     """
-    if is_start:
-        dict_log['current'] = time.time()
-    last_time = dict_log['current']
-    dict_log[stepname] = round(time.time() - last_time,2)
-    dict_log['current'] = time.time()
+    def __init__(self):
+        self.dict_log = {}
+    def start_logging (self):
+        self.dict_log['last_time'] = time.time()
+        self.dict_log['Startzeitpunkt'] = self.dict_log['last_time']
+    def log_time(self, stepname):
+        """
+        Schreibt die Zeiten der einzelnen Schritte mit
+        :param str stepname
+        :param bool is_start
+        """
+        if not 'last_time' in self.dict_log.keys():
+            raise QgsProcessingException('Fehler im Logger: keine aktuelle Zeit (\'last_time\')')
+        else:
+            last_time = self.dict_log['last_time']
+        if stepname:
+            self.dict_log[stepname] = round(time.time() - last_time,2)
+            self.dict_log['last_time'] = time.time()
+    def clear_log(self):
+        self.dict_log = {}
+    def report_time_logs(self):
+        timing_txt = [
+            str(k)+': '+str(v) for k, v in self.dict_log.items() if k not in [
+                'Startzeitpunkt',
+                'last_time'
+            ]
+        ]
+        self.clear_log()
+        return timing_txt
+    def __del__(self):
+        self.clear_log()
 
 
 
