@@ -13,18 +13,25 @@ def get_missing_fields(layer_key, layer, pflichtfelder):
     ]
     return missing_fields
 
-def check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params_processing):
+def check_missing_fields(layer_key, layer, report_dict, report_object ,pflichtfelder, params_processing):
     """
     Diese Funktion fuegt die fehlenden Felder in das report_dict ein
     :param str layer_key
     :param QgsVectorLayer layer
     :param dict report_dict
+    :param layerReport report_object
     :param dict pflichtfelder
     :param dict params_processing
     """ 
     missing_fields = get_missing_fields(layer_key, layer, pflichtfelder)
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     report_dict[layer_key]['attribute']['missing_fields'] = missing_fields
+    report_object.add_attribute_entry(
+        layer_key,
+        'missing_fields',
+        missing_fields,
+        accept_empty = False
+    )
     if layer_key == 'gewaesser' and ereign_gew_id_field in missing_fields:
         params_processing['gew_primary_key_missing'] = True
 

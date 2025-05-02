@@ -22,10 +22,115 @@ from .defaults import (
     output_layer_prefixes
 )
 
-from .hilfsfunktionen import get_geom_type
+from .hilfsfunktionen import (
+    get_geom_type,
+    check_path_in_dict
+)
 
 
-def create_report_dict(params_processing, is_test_version=False):
+class layerReport:
+    def __init__(self,layer_dict):
+        """
+        Initiiert die Klasse mit self.report_dict = {
+            'gewaesser': {
+                'name': 'so heisst die Datei',
+                'attribute': {
+                    'missing_fields': [],
+                    'primary_key_empty': [id1, id2],
+                    'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
+                },
+                'geometrien': {
+                    'fehler1': [],
+                    'fehler2': []
+                }
+            },
+            'rohrleitungen': {
+                'name': 'so heisst die Datei",
+                'attribute': {
+                    'missing_fields': [],
+                    #'primary_key_empty': [id1, id2],
+                    #'primary_key_duplicat': [[id3, id4],[id5, id6, id7]],
+                    'gew_key_empty': [id1, id2],
+                    'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
+                },
+                'geometrien': {
+                    'fehler1': [],
+                    'fehler2': []
+                }
+            }
+        }
+        :param dict layer_dict: {'layer_name': layer, 'layer_name2': layer2 ...}
+        """
+        self.report_dict = {}
+        for key, value in layer_dict.items():
+            layer = value['layer']
+            self.report_dict[key] = {
+                'name': layer.name(),
+                'attribute': {},
+                'geometrien': {}
+            }
+        # ein Dictionary fuer die Stationierung der Objekte
+        self.stats_dict = dict()
+
+    def add_rldl(self):
+        self.report_dict['layer_rldl'] = {'geometrien':{}}
+
+    def add_attribute_entry(self, layer_key, error_name, entry, accept_empty = False):
+        """
+        Traegt einen neuen Attribut-Fehler ein
+        :param str layer_key
+        :param str error_name
+        :param list or dataframe entry
+        :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
+        """
+        if len(entry) > 0:
+            self.report_dict[layer_key]['attribute'][error_name] = entry
+
+    def add_geom_entry(self, layer_key, error_name, entry, accept_empty = False):
+        """
+        Traegt einen neuen Attribut-Fehler ein
+        :param str layer_key
+        :param str error_name
+        :param list or dataframe entry
+        :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
+        """
+        if len(entry) > 0:
+            self.report_dict[layer_key]['geometrien'][error_name] = entry
+
+    def prepare_report_dict(self, feedback):
+        """
+        Bereitet self.report_dict fuer die Ausgabe vor
+        :param QgsProcessingFeedback feedback
+        """
+        step_temp = 100/len(self.report_dict)
+        for i, layer_key in enumerate(['rohrleitungen', 'durchlaesse', 'layer_rldl', 'schaechte', 'wehre']):
+            if feedback.isCanceled():
+                break
+            feedback.setProgress(int((i+1) * step_temp))
+            for error_name in ['geom_ereign_auf_gew','geom_schacht_auf_rldl']:
+                if error_name in self.report_dict[layer_key]['geometrien'].keys():
+                    df = self.report_dict[layer_key]['geometrien'][error_name]
+                    # Unbenoetige Spalten loeschen
+                    df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
+                    # # Fehlercodes mit Text ersetzen
+                    df3 = replace_values_with_strings(df2, dict_ereign_fehler)
+                    self.report_dict[layer_key]['geometrien'][error_name] = df3
+
+        for i, layer_key in enumerate(self.report_dict.keys()):
+            # Leere Abschnitte ('geometrien', 'attribute') loeschen
+            for rep_section in self.report_dict[layer_key].keys():
+                if len(self.report_dict[layer_key][rep_section]) == 0:
+                    del self.report_dict[layer_key][rep_section]
+        return self.report_dict
+    
+    def get_report_dict(self):
+        """
+        Gibt das Report-Dict zurueck
+        :return: dict
+        """
+        return self.report_dict
+
+def create_report_dict(params_processing):
     """
     Erstellt das Dictionary, dass alle Informationen fuer den Bericht enthaelt
     Aufbau:     
@@ -58,17 +163,9 @@ def create_report_dict(params_processing, is_test_version=False):
         }
     }
     :param dict params_processing: ein Dictionary mit allen wichtigen Parametern fuer die Pruefungsroutine
-    :param bool is_test_version: True, wenn die Funktion in einer Testversion laeuft und ein entsprechender Hinweis in die Datei geschrieben wird
     :return: dict
     """
     report_dict = {}
-    if is_test_version:
-        report_dict['Hinweis'] = (
-            'Diese Datei wurde noch mit einer Testversion '
-            + 'des Plugins erstellt und enthält daher bisher '
-            + 'nur die Feature-Ids der fehlerhaften Objekte sowie einen '
-            + 'Verweis auf die Fehlerart als (numerischer) Code'
-        )
     for key, value in params_processing['layer_dict'].items():
         layer = value['layer']
         # Anzahl Objekte fuer das Feedback
@@ -101,6 +198,15 @@ def replace_lst_ids(series_i, dict_repl):
             pass
     return series_i
 
+def join_list_items(x):
+    """
+    Fuegt alles in x zu einem String zusammen
+    """
+    if isinstance(x, list):
+        return ', '.join(map(str, x))
+    else:
+        return str(x) 
+    
 
 def listcol_to_str (df, column_name):
     """
@@ -109,12 +215,6 @@ def listcol_to_str (df, column_name):
     :param str column_name
     :return: pd.DataFrame
     """
-    def join_list_items(x):
-        if isinstance(x, list):
-            return ', '.join(map(str, x))
-        else:
-            return str(x) 
-    
     df[column_name] = df[column_name].apply(join_list_items)
     return df
     

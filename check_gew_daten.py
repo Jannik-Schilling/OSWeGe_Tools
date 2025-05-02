@@ -65,7 +65,8 @@ from .check_gew_report import (
     clean_report_dict,
     create_report_dict,
     create_layers_from_report_dict,
-    save_layer_to_file
+    save_layer_to_file,
+    layerReport
 )
 
 from .hilfsfunktionen import (
@@ -170,11 +171,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
         reportdatei = self.parameterAsString(parameters, self.REPORT, context)
-        
-        if not is_test_version:
-            if os.path.isfile(reportdatei):
-                raise QgsProcessingException('Die Datei '+reportdatei
-                + ' existiert bereits. Bitte einen anderen Dateinamen wählen.')
+
 
         # Zusammenfassendes dictionary fuer Prozessparameter, die an Funktionen uebergeben werden
         feedback.setProgressText('Vorbereitung der Tests')
@@ -220,13 +217,15 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # dictionary fuer Feedback / Fehlermeldungen
         report_dict = create_report_dict(params_processing)
+        report_object = layerReport(layer_dict)
 
         # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden      
         handle_rl_and_dl(
             layer_rohrleitungen,
             layer_durchlaesse,
             params_processing,
-            report_dict
+            report_dict,
+            report_object
         )
         feedback.setProgressText('Abgeschlossen \n ')
         timeLogger.log_time('Vorbereitung')
@@ -236,6 +235,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         def main_check(
             layer_key,
             report_dict,
+            report_object,
             params_processing,
             feedback,
             i_run
@@ -244,6 +244,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte aller Layer zu pruefen (Attribute + Geometrien)
             :param str key
             :param dict report_dict
+            :param layerReport report_object
             :param dict params_processing
             :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
@@ -260,8 +261,17 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            check_missing_fields(layer_key, layer, report_dict, pflichtfelder, params_processing)
+            check_missing_fields(
+                layer_key,
+                layer,
+                report_dict,
+                report_object,
+                pflichtfelder,
+                params_processing
+            )
             timeLogger.log_time(layer_key+'_Fields')
+
+            print(report_object.get_report_dict())
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
@@ -301,6 +311,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 main_check(
                     key,
                     report_dict,
+                    report_object,
                     params_processing,
                     feedback,
                     i
@@ -323,20 +334,20 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             crs_out, feedback
         )
         feedback.setProgressText('Abgeschlossen \n ')
-        
+
         if len(vector_layer_list) > 0:
             feedback.setProgressText('Speichere Layer in Datei...')
             save_layer_to_file(vector_layer_list, reportdatei)   
             feedback.setProgressText('Abgeschlossen \n ')     
             timeLogger.log_time('WriteLayer')
-        
-        
+
         if is_test_version:
             feedback.setProgressText(' \nDauer der Schritte:')
             timing_txt = timeLogger.report_time_logs()
             feedback.setProgressText('\n'.join(timing_txt))
         del timeLogger
-        
+
+
         # 3 Feedback
         if self.newer_qgis_version:
             feedback.pushFormattedMessage(

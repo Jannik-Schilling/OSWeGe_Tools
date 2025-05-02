@@ -5,7 +5,11 @@ from qgis.core import (
     QgsSpatialIndex,
     QgsWkbTypes
 )
-from .check_gew_report import replace_lst_ids
+from .check_gew_report import (
+    replace_lst_ids,
+    join_list_items
+)
+
 from .hilfsfunktionen import (
     get_vtx,
     get_line_candidates_ids,
@@ -14,6 +18,7 @@ from .hilfsfunktionen import (
     setup_localparams_for_tests_with_comparisons,
     sub_line_by_stats
 )
+
 
 def check_geometry_empty_or_null(geom):
     """
@@ -214,67 +219,61 @@ def handle_tests_compare_in_own_layer(
     # Wasserscheiden und Senken
     if not skip_dict['skip_geom_wasserscheiden_senken']:
         feedback.setProgressText('--- Wasserscheiden, Senken')
-        list_geom_wassersch, list_geom_senken = handle_wassersch_senken(
-            layer,
-            layer_steps,
-            feedback
+        # Listen fuer das einmalige Durchlaufen der Funktion
+        visited_features_wassersch = []
+        visited_features_senken = []
+        # Listen fuer die Ergebnisse
+        list_geom_wassersch = []
+        list_geom_senken = []
+        # Da Objekte im Gew.-Layer gesucht werden, ist der andere 
+        # Spatial Index auch der des Gewaesserlayers
+        spatial_index_other = QgsSpatialIndex(layer.getFeatures())
+        for i, feature in enumerate(layer.getFeatures()):
+            feedback.setProgress(int((i+1) * layer_steps))
+            if feedback.isCanceled():
+                break
+            geom = feature.geometry()
+            feature_id = feature.id()
+            if geom:
+                if not feature_id in visited_features_wassersch:
+                    wasserscheiden = check_geometrie_wasserscheide_senke(
+                        geom,
+                        feature_id,
+                        layer,
+                        spatial_index_other
+                    )
+                    if wasserscheiden:
+                        visited_features_wassersch = list(
+                            set(visited_features_wassersch + wasserscheiden[0])  # die Geometrie wird nicht eingetragen
+                        )
+                        wasserscheiden[0] = join_list_items(wasserscheiden[0])
+                        list_geom_wassersch.append(wasserscheiden)
+                if not feature_id in visited_features_senken:
+                    senken = check_geometrie_wasserscheide_senke(
+                        geom,
+                        feature_id,
+                        layer,
+                        spatial_index_other,
+                        senke=True
+                    )
+                    if senken:
+                        visited_features_senken = list(
+                            set(visited_features_senken + senken[0])  # die Geometrie wird nicht eingetragen
+                        )
+                        senken[0] = join_list_items(senken[0])
+                        list_geom_senken.append(senken)
+        df_wasserscheiden = pd.DataFrame(
+            list_geom_wassersch,
+            columns = ['feature_id','geometry']
         )
-        if len(list_geom_wassersch) > 0:
-            report_dict[layer_key]['geometrien']['wasserscheiden'] = pd.DataFrame(list_geom_wassersch, columns = ['feature_id','geometry'])
-        if len(list_geom_wassersch) > 0:
-            report_dict[layer_key]['geometrien']['senken'] = pd.DataFrame(list_geom_senken, columns = ['feature_id','geometry'])
-
-
-def handle_wassersch_senken(layer, layer_steps, feedback):
-    """
-    Handles the detection of watersheds and sinks in the given layer.
-    :param QgsVectorLayer layer: The layer to process.
-    :param float layer_steps: Progress steps for feedback.
-    :param QgsProcessingFeedback feedback: Feedback object for progress reporting.
-    :return: tuple (list_geom_wassersch, list_geom_senken)
-    """
-    # Listen fuer das einmalige Durchlaufen der Funktion
-    visited_features_wassersch = []
-    visited_features_senken = []
-    # Listen fuer die Ergebnisse
-    list_geom_wassersch = []
-    list_geom_senken = []
-    # Da Objekte im Gew.-Layer gesucht werden, ist der andere 
-    # Spatial Index auch der des Gewaesserlayers
-    spatial_index_other = QgsSpatialIndex(layer.getFeatures())
-    for i, feature in enumerate(layer.getFeatures()):
-        feedback.setProgress(int((i+1) * layer_steps))
-        if feedback.isCanceled():
-            break
-        geom = feature.geometry()
-        feature_id = feature.id()
-        if geom:
-            if feature_id not in visited_features_wassersch:
-                wasserscheiden = check_geometrie_wasserscheide_senke(
-                    geom,
-                    feature_id,
-                    layer,
-                    spatial_index_other
-                )
-                if wasserscheiden:
-                    list_geom_wassersch.append(wasserscheiden)
-                    visited_features_wassersch = list(
-                        set(visited_features_wassersch + wasserscheiden[:-1][0])  # die Geometrie wird nicht eingetragen
-                    )
-            if feature_id not in visited_features_senken:
-                senken = check_geometrie_wasserscheide_senke(
-                    geom,
-                    feature_id,
-                    layer,
-                    spatial_index_other,
-                    senke=True
-                )
-                if senken:
-                    list_geom_senken.append(senken)
-                    visited_features_senken = list(
-                        set(visited_features_senken + senken[:-1][0])  # die Geometrie wird nicht eingetragen
-                    )
-    return list_geom_wassersch, list_geom_senken
+        df_senken = pd.DataFrame(
+            list_geom_senken,
+            columns = ['feature_id','geometry']
+        )
+        if len(df_wasserscheiden) > 0:
+            report_dict[layer_key]['geometrien']['wasserscheiden'] = df_wasserscheiden
+        if len(list_geom_senken) > 0:
+            report_dict[layer_key]['geometrien']['senken'] = df_senken
 
 def check_duplicates_crossings(
     layer,
@@ -438,7 +437,7 @@ def handle_tests_compare_other_layer(
         report_dict[layer_key]['geometrien']['geom_schacht_auf_rldl'] = df_schaechte_auf_rldl
 
 
-def check_geom_on_line(
+def check_line_geom_on_line(
     geom,
     feature_id_temp,
     gew_layer,
@@ -446,13 +445,13 @@ def check_geom_on_line(
     with_stat=False
 ):
     """
-    Prueft ob sich eine eine Geometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
+    Prueft ob sich eine eine Linieneometrie (geom) korrekt auf einem anderen Linienobjekt des layers gew_layer befindet
     :param QgsGeometry (Line) geom
     :param str feature_id_temp: Id des Objekts
     :param QgsVectorLayer (Line) gew_layer
     :param QgsSpatialIndex spatial_index_other
     :param bool with_stat: Rückgabe der Stationierung?; default: False
-    :return: dict
+    :return: pd.Series
     """
     sr_vtx_report = pd.Series()  # Fehlermeldungen siehe defaults.dict_ereign_fehler
     other_line_ft = get_line_to_check(geom, gew_layer, spatial_index_other)
@@ -515,7 +514,6 @@ def check_geom_on_line(
         sr_vtx_report['Lage'] = [1, [str(i) for i, b in enumerate(list_point_on_line) if not b]]  # Abweichung
     else:
         sr_vtx_report['Lage'] = 0 # Korrekt
-    sr_vtx_report['geometry'] = geom
     return sr_vtx_report
 
 
@@ -615,23 +613,23 @@ def check_location_event_on_river(
                         # Distanz zum naechsten Gewaesser zu gross
                         series_vtx_bericht['Lage'] = 1
                     else:
-                        # korrekt
-                        series_vtx_bericht['Lage'] = 0  # hier spaeter noch die Stationierung
+                        continue
                 else:
                     # kein Gewaesser in der Naehe gefunden
                     series_vtx_bericht['Lage'] = 1
             else:  # Line
-                series_vtx_bericht = check_geom_on_line(
+                series_vtx_bericht = check_line_geom_on_line(
                     geom,
                     feature_id_temp,
                     layer_gew,
                     spatial_index_gew,
                     with_stat=True
                 )
+                if (series_vtx_bericht[['Lage', 'Richtung', 'Anzahl']] == 0).all():
+                    continue
                 series_vtx_bericht['feature_id'] = feature_id_temp
             series_vtx_bericht['geometry'] = geom
-        list_vtx_bericht = list_vtx_bericht + [series_vtx_bericht]
-    #### TODO sort, so dass geometry hinten ist
+            list_vtx_bericht = list_vtx_bericht + [series_vtx_bericht]
     return pd.DataFrame(list_vtx_bericht)
 
 
@@ -691,14 +689,11 @@ def check_schaechte_auf_rldl(
                 )
             else:
                 schacht_auf_rldl = False
-            fehler_auf_gew = df_schacht_auf_gw.loc[
-                df_schacht_auf_gw[
-                    'feature_id']==feature_id,
-                    'Lage'
-            ].values[0]
+            # Fehler auf Gewaesser: wenn nicht in df_schacht_auf_gw, dann auch kein Fehler
+            fehler_auf_gew = feature_id in list(df_schacht_auf_gw['feature_id'])
             if schacht_auf_rldl and (not fehler_auf_gew):
                 # korrekt
-                pass
+                continue
             elif (not fehler_auf_gew) and (not schacht_auf_rldl):
                 # Fehler: schacht auf offenem gewaesser
                 list_schacht_rldl = list_schacht_rldl + [[feature_id, 1, geom]]

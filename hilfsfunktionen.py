@@ -140,24 +140,26 @@ def get_geom_type(error_name_long, layer_key=None):
 def handle_rl_and_dl( 
     layer_rohrleitungen,
     layer_durchlaesse,
-    params,
-    report_dict
+    params_processing,
+    report_dict,
+    report_object=None
 ):
     """
     Falls rl und dl vorhanden sind werden sie zu einem Layer zusammengefuehrt
-    Dazu wird ein Eintrag in params und report_dict erstellt
+    Dazu wird ein Eintrag in params_processing und report_dict erstellt
     :param QgsVectorLayer layer_rohrleitungen
     :param QgsVectorLayer layer_durchlaesse
-    :param dict params: alle benannten Parameter
+    :param dict params_processing: alle benannten Parameter
     :param dict report_dict
+    :param layerReport report_object: Report-Objekt, falls vorhanden
     """
     if layer_rohrleitungen and layer_durchlaesse:
         layer_rldl = merge_rl_dl(
-            params
+            params_processing
         )
     
-        # Zu Params: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
-        params['layer_rldl'] = {
+        # Zu params_processing: Anzeige, ob die Pruefroutinen des Layers schon durchlaufen wurden
+        params_processing['layer_rldl'] = {
             'layer': layer_rldl,
             'runs': {  
                 'check_duplicates_crossings': False,  
@@ -165,6 +167,7 @@ def handle_rl_and_dl(
                 'check_overlap_by_stat': False
             },
         }
+        report_object.add_rldl()
         report_dict['layer_rldl'] = {'geometrien':{}}
 
 def merge_rl_dl(
@@ -175,7 +178,7 @@ def merge_rl_dl(
     :param dict params: alle benannten Parameter
     :return QgsVectorLayer
     """
-    log_time('Zusammenfassen')
+    #log_time('Zusammenfassen')
     # neues Feld "merged_id" mit dem Layername und der id() des Objekts,
     # weil sich die id() beim Vereinigen der Layer aendert
     rl_mit_id = processing.run(
@@ -343,3 +346,17 @@ def setup_localparams_for_tests_with_comparisons(
     if layer_key == 'wehre':
         pass
     return temp_key, temp_layer, temp_layer_steps, skip_dict, use_field_merged_id
+
+
+def check_path_in_dict(dict_to_check, key_list):
+    """
+    Ueberprueft, ob der Pfad key_list in dict_to_check existiert
+    :param dict dict_to_check
+    :param list key_list: Liste mit den Schluesseln des Pfades
+    :return: bool
+    """
+    key = key_list[0]
+    if key in dict_to_check.keys():
+        return check_path_in_dict(dict_to_check[key], key_list[1:])
+    else:
+        return False
