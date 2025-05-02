@@ -348,7 +348,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         
         # Dinge loeschen (zur Sicherheit)
         del timeLogger
-        print(report_object.get_report_dict())
         del report_object
 
         # 3 Feedback

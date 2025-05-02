@@ -1,3 +1,8 @@
+from .hilfsfunktionen import (
+    is_path_in_dict
+)
+
+
 def check_missing_fields(layer_key, layer, pflichtfelder):
     """
     Diese Funktion prueft, ob alle Pflichtfelder vorhanden sind
@@ -54,11 +59,13 @@ def handle_tests_attributes(
     :param layerReport report_object
     :param dict params_processing
     """
-    missing_fields = report_object.get_report_entry([
-        layer_key,
-        'attribute',
-        'missing_fields'
-    ])
+    missing_fields = report_object.report_dict[layer_key]['attribute']['missing_fields']
+    print(is_path_in_dict(report_object.report_dict, [layer_key,'attribute','missing_fields']))
+    #missing_fields = report_object.get_report_entry([
+    #    layer_key,
+    #    'attribute',
+    #    'missing_fields'
+    #])
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     feedback = params_processing['feedback']
     if ereign_gew_id_field in missing_fields:
