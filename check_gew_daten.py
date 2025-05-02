@@ -53,7 +53,7 @@ from .defaults import (
 
 from .attributpruefung import (
     check_missing_fields,
-    check_layer_attributes
+    handle_tests_attributes
 )
 
 from .geometriepruefungen import (
@@ -271,17 +271,18 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             )
             timeLogger.log_time(layer_key+'_Fields')
 
-            print(report_object.get_report_dict())
 
             # Pruefroutinen fuer Attribute
             feedback.setProgressText('> Prüfe alle Einzelobjekte...')
-            check_layer_attributes(
+            handle_tests_attributes(
                 layer_key,
                 layer,
                 report_dict,
+                report_object,
                 params_processing
             )
             timeLogger.log_time(layer_key+'_Attr')
+
 
             # Pruefroutinen fuer Geometrien
             feedback.setProgressText('-- Geometrien')
@@ -291,13 +292,17 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 layer_key,
                 layer_steps,
                 report_dict,
+                report_object,
                 feedback
             )
             timeLogger.log_time((layer_key+'_handle_tests_single_geometries'))
-
-
             # Geometrien pruefen durch Vergleich mit anderen Geometrien
-            handle_tests_geoms_comparisons(layer_key, report_dict, params_processing)
+            handle_tests_geoms_comparisons(
+                layer_key,
+                report_dict,
+                report_object,
+                params_processing
+            )
             timeLogger.log_time((key+'_geom_comp_others'))
             feedback.setProgressText('Abgeschlossen \n ')
 
@@ -323,14 +328,17 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         # 1 report_dict bereinigen
         if not test_output_all:
             feedback.setProgressText('Bereinige Fehlerliste...')
+            # Alt
             clean_report_dict(report_dict, feedback)
+            # Neu
+            report_dict2 = report_object.prepare_report_dict(feedback)
             feedback.setProgressText('Abgeschlossen \n ')
-
+            
 
         # 2 Ausgabe schreiben
         feedback.setProgressText('Generiere Layer / Ausgabe...')
         vector_layer_list, list_messages = create_layers_from_report_dict(
-            report_dict,
+            report_dict2, #report_dict,
             crs_out, feedback
         )
         feedback.setProgressText('Abgeschlossen \n ')
@@ -345,8 +353,11 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             feedback.setProgressText(' \nDauer der Schritte:')
             timing_txt = timeLogger.report_time_logs()
             feedback.setProgressText('\n'.join(timing_txt))
+        
+        # Dinge loeschen (zur Sicherheit)
         del timeLogger
-
+        print(report_object.get_report_dict())
+        del report_object
 
         # 3 Feedback
         if self.newer_qgis_version:

@@ -348,15 +348,36 @@ def setup_localparams_for_tests_with_comparisons(
     return temp_key, temp_layer, temp_layer_steps, skip_dict, use_field_merged_id
 
 
-def check_path_in_dict(dict_to_check, key_list):
+def is_path_in_dict(dict_to_check, key_list):
     """
     Ueberprueft, ob der Pfad key_list in dict_to_check existiert
     :param dict dict_to_check
     :param list key_list: Liste mit den Schluesseln des Pfades
     :return: bool
     """
-    key = key_list[0]
-    if key in dict_to_check.keys():
-        return check_path_in_dict(dict_to_check[key], key_list[1:])
+    if not key_list:
+       return True
     else:
-        return False
+        if not isinstance(dict_to_check, dict):
+            return False
+        else:
+            key = key_list[0]
+            if key in dict_to_check.keys():
+                return is_path_in_dict(dict_to_check[key], key_list[1:])
+            else:
+                return False
+
+def get_entry_from_dict(dict_requested, key_list):
+    """
+    Sucht ein Objekt aus einem Dictionary anhand einers Pfades von Keys;
+    Vorher muss mit is_path_in_dict geprueft werden, ob der Pfad existiert!
+    :param dict dict_requested
+    :param list key_list
+    """
+    if not isinstance(key_list, list):
+        raise TypeError('key_list must be list')
+    if not key_list:
+        return dict_requested
+    else:
+        key = key_list[0]
+        return get_entry_from_dict(dict_requested[key], key_list[1:])

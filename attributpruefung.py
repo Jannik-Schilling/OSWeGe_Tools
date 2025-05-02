@@ -35,13 +35,23 @@ def check_missing_fields(layer_key, layer, report_dict, report_object ,pflichtfe
     if layer_key == 'gewaesser' and ereign_gew_id_field in missing_fields:
         params_processing['gew_primary_key_missing'] = True
 
-def check_layer_attributes(
+def handle_tests_attributes(
     layer_key,
     layer,
     report_dict,
+    report_object,
     params_processing
 ):
+    """
+    Fuehrt die Attributpruefungen durch
+    :param str layer_key
+    :param QgsVectorLayer layer
+    :param dict report_dict
+    :param layerReport report_object
+    :param dict params_processing
+    """
     missing_fields = report_dict[layer_key]['attribute']['missing_fields']
+    missing_fields = report_object.report_dict[layer_key]['attribute']['missing_fields']
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     feedback = params_processing['feedback']
     if ereign_gew_id_field in missing_fields:
@@ -58,6 +68,7 @@ def check_layer_attributes(
             layer,
             ereign_gew_id_field,
             report_dict,
+            report_object,
             params_processing,
             feedback
         )
@@ -67,6 +78,7 @@ def check_primary_and_foreign_key(
     layer,
     ereign_gew_id_field,
     report_dict,
+    report_object,
     params_processing,
     feedback
 ):
@@ -75,7 +87,8 @@ def check_primary_and_foreign_key(
     :param str layer_key
     :param QgsVectorLayer layer
     :param str ereign_gew_id_field
-    :param dict report dict
+    :param dict report_dict
+    :param layerReport report_object
     :param dict params_processing
     :param QgsProcessingFeedback feedback
     """
@@ -104,6 +117,16 @@ def check_primary_and_foreign_key(
             report_dict[layer_key]['attribute']['primary_key_empty'] = list_primary_key_empty
         if len(list_primary_key_duplicat) > 0:
             report_dict[layer_key]['attribute']['primary_key_duplicat'] = list_primary_key_duplicat
+        report_object.add_attribute_entry(
+            layer_key,
+            'primary_key_empty',
+            list_primary_key_empty
+        )
+        report_object.add_attribute_entry(
+            layer_key,
+            'primary_key_duplicat',
+            list_primary_key_duplicat
+        )
 
     else:  # Attributtest für Ereignisse
         list_gew_key_empty = []
@@ -137,3 +160,13 @@ def check_primary_and_foreign_key(
                 report_dict[layer_key]['attribute']['gew_key_empty'] = list_gew_key_empty
             if len(list_gew_key_invalid) > 0:
                 report_dict[layer_key]['attribute']['gew_key_invalid'] = list_gew_key_invalid
+            report_object.add_attribute_entry(
+                layer_key,
+                'gew_key_empty',
+                list_gew_key_empty
+            )
+            report_object.add_attribute_entry(
+                layer_key,
+                'gew_key_invalid',
+                list_gew_key_invalid
+            )

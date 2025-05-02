@@ -24,7 +24,8 @@ from .defaults import (
 
 from .hilfsfunktionen import (
     get_geom_type,
-    check_path_in_dict
+    get_entry_from_dict,
+    is_path_in_dict
 )
 
 
@@ -83,8 +84,11 @@ class layerReport:
         :param list or dataframe entry
         :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
         """
-        if len(entry) > 0:
+        if accept_empty:
             self.report_dict[layer_key]['attribute'][error_name] = entry
+        else:
+            if len(entry) > 0:
+                self.report_dict[layer_key]['attribute'][error_name] = entry
 
     def add_geom_entry(self, layer_key, error_name, entry, accept_empty = False):
         """
@@ -94,8 +98,11 @@ class layerReport:
         :param list or dataframe entry
         :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
         """
-        if len(entry) > 0:
+        if accept_empty:
             self.report_dict[layer_key]['geometrien'][error_name] = entry
+        else:
+            if len(entry) > 0:
+                self.report_dict[layer_key]['geometrien'][error_name] = entry
 
     def prepare_report_dict(self, feedback):
         """
@@ -107,21 +114,30 @@ class layerReport:
             if feedback.isCanceled():
                 break
             feedback.setProgress(int((i+1) * step_temp))
-            for error_name in ['geom_ereign_auf_gew','geom_schacht_auf_rldl']:
-                if error_name in self.report_dict[layer_key]['geometrien'].keys():
-                    df = self.report_dict[layer_key]['geometrien'][error_name]
-                    # Unbenoetige Spalten loeschen
-                    df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
-                    # # Fehlercodes mit Text ersetzen
-                    df3 = replace_values_with_strings(df2, dict_ereign_fehler)
-                    self.report_dict[layer_key]['geometrien'][error_name] = df3
-
-        for i, layer_key in enumerate(self.report_dict.keys()):
-            # Leere Abschnitte ('geometrien', 'attribute') loeschen
-            for rep_section in self.report_dict[layer_key].keys():
-                if len(self.report_dict[layer_key][rep_section]) == 0:
-                    del self.report_dict[layer_key][rep_section]
-        return self.report_dict
+            if layer_key not in self.report_dict.keys():
+                continue
+            else:
+                for error_name in ['geom_ereign_auf_gew','geom_schacht_auf_rldl']:
+                    if error_name in self.report_dict[layer_key]['geometrien'].keys():
+                        df = self.report_dict[layer_key]['geometrien'][error_name]
+                        # Unbenoetige Spalten loeschen
+                        df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
+                        # # Fehlercodes mit Text ersetzen
+                        df3 = replace_values_with_strings(df2, dict_ereign_fehler)
+                        self.report_dict[layer_key]['geometrien'][error_name] = df3
+        resulting_dict = self.report_dict.copy()
+        for layer_key in resulting_dict.keys():
+            for rep_section in ['attribute', 'geometrien']:
+                if not rep_section in resulting_dict[layer_key].keys():
+                    pass
+                else:
+                    resulting_dict[layer_key][rep_section] = {
+                        sub_section: elem for sub_section, elem in resulting_dict[layer_key][rep_section].items() if len(elem) != 0
+                    }
+                    if len(resulting_dict[layer_key][rep_section]) == 0:
+                        del resulting_dict[layer_key][rep_section]
+        replace_report_dict_keys(resulting_dict, dict_report_texts)
+        return resulting_dict
     
     def get_report_dict(self):
         """
@@ -129,6 +145,20 @@ class layerReport:
         :return: dict
         """
         return self.report_dict
+        
+    def get_report_entry(self, key_list):
+        """
+        Gibt das Objekt aus dem report dict zurück, wenn der Pfad existiert
+        :param list key_list
+        """
+        if not key_list:
+            return None
+        elif is_path_in_dict(self.report_dict, key_list):
+            get_entry_from_dict(self.report_dict, key_list)
+        else:
+            return None
+
+
 
 def create_report_dict(params_processing):
     """

@@ -68,13 +68,21 @@ def check_geometry_selfintersect(geom, geom_empty):
             return False
     
 
-def handle_tests_single_geometries(layer, layer_key, layer_steps, report_dict, feedback):
+def handle_tests_single_geometries(
+    layer,
+    layer_key,
+    layer_steps,
+    report_dict,
+    report_object,
+    feedback
+):
     """
     Diese Funktion prueft die Geometrien auf Leere, Multigeometrien und Selbstueberschneidungen
     :param QgsVectorLayer layer
     :param str layer_key
     :param float layer_steps
     :param dict report_dict
+    :param layerReport report_object
     :param QgsProcessingFeedback feedback
     """
     feedback.setProgressText(
@@ -105,9 +113,12 @@ def handle_tests_single_geometries(layer, layer_key, layer_steps, report_dict, f
         list_geom_is_multi,
         list_geom_sefintersect
     ]):
-        if len(fehl_lst)>0:
-            df_i = pd.DataFrame({fehl_typ: fehl_lst})
+        df_i = pd.DataFrame({fehl_typ: fehl_lst})
+        # Alt
+        if len(df_i)>0:
             report_dict[layer_key]['geometrien'][fehl_typ] = df_i
+        # Neu
+        report_object.add_geom_entry(layer_key, fehl_typ, df_i)
 
 
 def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
@@ -124,12 +135,14 @@ def check_vtx_distance(vtx_geom, geom2, tolerance=1e-6):
 def handle_tests_geoms_comparisons(  # perform check....
     layer_key,
     report_dict,
+    report_object,
     params_processing
 ):
     """
     Prueft Geometrien durch den Vergleich mit anderen Geometrien
     :param str layer_key
     :param dict report_dict
+    :param layerReport report_object
     :param dict params_processing
     """
     # Setup
@@ -149,6 +162,7 @@ def handle_tests_geoms_comparisons(  # perform check....
         use_field_merged_id,
         skip_dict,
         report_dict,
+        report_object,
         params_processing
     )
 
@@ -160,6 +174,7 @@ def handle_tests_geoms_comparisons(  # perform check....
         use_field_merged_id,
         skip_dict,
         report_dict,
+        report_object,
         params_processing
     )
 
@@ -169,6 +184,7 @@ def handle_tests_geoms_comparisons(  # perform check....
         temp_key,
         skip_dict,
         report_dict,
+        report_object,
         params_processing
     )
 
@@ -180,6 +196,7 @@ def handle_tests_compare_in_own_layer(
     use_field_merged_id,
     skip_dict,
     report_dict,
+    report_object,
     params_processing
 ):
     """
@@ -190,6 +207,7 @@ def handle_tests_compare_in_own_layer(
     :param bool use_field_merged_id
     :param dict skip_dict
     :param dict report_dict
+    :param layerReport report_object
     :param dict params_processing
     """
     feedback = params_processing['feedback']
@@ -211,10 +229,22 @@ def handle_tests_compare_in_own_layer(
             }
             df_geom_crossings = df_geom_crossings.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
             df_geom_duplicate = df_geom_duplicate.apply(lambda x: replace_lst_ids(x, dict_alternative_id), axis=1)
+        # Alt
         if len(df_geom_crossings) > 0:
             report_dict[layer_key]['geometrien']['geom_crossings'] = df_geom_crossings
         if len(df_geom_duplicate) > 0:
             report_dict[layer_key]['geometrien']['geom_duplicate'] = df_geom_duplicate
+        # Neu
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_crossings',
+            df_geom_crossings
+        )
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_duplicate',
+            df_geom_duplicate
+        )
     
     # Wasserscheiden und Senken
     if not skip_dict['skip_geom_wasserscheiden_senken']:
@@ -270,10 +300,22 @@ def handle_tests_compare_in_own_layer(
             list_geom_senken,
             columns = ['feature_id','geometry']
         )
+        # Alt
         if len(df_wasserscheiden) > 0:
             report_dict[layer_key]['geometrien']['wasserscheiden'] = df_wasserscheiden
         if len(list_geom_senken) > 0:
             report_dict[layer_key]['geometrien']['senken'] = df_senken
+        # Neu
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_duplicate',
+            df_geom_duplicate
+        )
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_duplicate',
+            df_geom_duplicate
+        )
 
 def check_duplicates_crossings(
     layer,
@@ -383,6 +425,7 @@ def handle_tests_compare_other_layer(
     use_field_merged_id,
     skip_dict,
     report_dict,
+    report_object,
     params_processing
 ):
     """
@@ -393,6 +436,7 @@ def handle_tests_compare_other_layer(
     :param bool use_field_merged_id
     :param dict skip_dict
     :param dict report_dict
+    :param layerReport report_object
     :param dict params_processing
     """
     feedback = params_processing['feedback']
@@ -413,7 +457,14 @@ def handle_tests_compare_other_layer(
             use_field_merged_id,
             params_processing
         )
+        # Alt
         report_dict[layer_key]['geometrien']['geom_ereign_auf_gew'] = df_vtx_bericht
+        # Neu
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_ereign_auf_gew',
+            df_vtx_bericht
+        )
 
     # Liegen Schaechte korrekt auf RL oder DL?
     if skip_dict['skip_geom_schacht_auf_rldl'] and layer_key == 'schaechte':
@@ -432,9 +483,17 @@ def handle_tests_compare_other_layer(
             layer,
             layer_steps,
             report_dict,
+            report_object,
             params_processing
         )
+        # Alt
         report_dict[layer_key]['geometrien']['geom_schacht_auf_rldl'] = df_schaechte_auf_rldl
+        # Neu
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_schacht_auf_rldl',
+            df_schaechte_auf_rldl
+        )
 
 
 def check_line_geom_on_line(
@@ -638,14 +697,18 @@ def check_schaechte_auf_rldl(
     layer,
     layer_steps,
     report_dict,
+    report_object,
     params_processing
 ):
+    """
+    Prueft, ob Schaecht korrekt auf RL oder DL liegen
+    """
     feedback = params_processing['feedback']
     if 'layer_rldl' in params_processing.keys():
         other_layer = params_processing['layer_rldl']['layer']
-    elif 'rohrleitungen' in report_dict.keys():
+    elif 'rohrleitungen' in params_processing[layer_dict].keys():
         other_layer = params_processing['layer_dict']['rohrleitungen']['layer']
-    elif 'durchlaesse' in report_dict.keys():
+    elif 'durchlaesse' in params_processing[layer_dict].keys():
         other_layer = params_processing['layer_dict']['durchlaesse']['layer']
     else:
         other_layer = None
@@ -656,12 +719,20 @@ def check_schaechte_auf_rldl(
         list_schacht_rldl = []
         
         # Der DataFrame mit der Lageueberpruefung der Schaechte auf dem Gewaesser
+        # Alt
         df_schacht_auf_gw = (
             report_dict
                 [layer_key]
                 ['geometrien']
                 ['geom_ereign_auf_gew']
         )
+        # Neu
+        df_schacht_auf_gew = report_object.get_report_entry([layer_key, 'geometrien', 'geom_ereign_auf_gew'])
+        if df_schacht_auf_gew is None:
+            gew_fehler_ids = []
+        else:
+            gew_fehler_ids = []
+        
 
         # Nun fuer jeden Schacht pruefen
         for i, feature in enumerate(layer.getFeatures()):
@@ -690,7 +761,10 @@ def check_schaechte_auf_rldl(
             else:
                 schacht_auf_rldl = False
             # Fehler auf Gewaesser: wenn nicht in df_schacht_auf_gw, dann auch kein Fehler
+            # Alt
             fehler_auf_gew = feature_id in list(df_schacht_auf_gw['feature_id'])
+            # Neu
+            fehler_auf_gew_neu = feature_id in gew_fehler_ids
             if schacht_auf_rldl and (not fehler_auf_gew):
                 # korrekt
                 continue
@@ -719,6 +793,7 @@ def handle_tests_overlap(
     layer_key,
     skip_dict,
     report_dict,
+    report_object,
     params_processing
 ):
     """
@@ -726,6 +801,7 @@ def handle_tests_overlap(
     :param float layer_steps
     :param dict skip_dict
     :param dict report_dict
+    :param layerReport report_object
     :param dict params_processing
     """
     feedback = params_processing['feedback']
@@ -738,3 +814,9 @@ def handle_tests_overlap(
         if len(list_overlap) > 0:
             df_overlap = pd.DataFrame(list_overlap, columns = ['id1', 'id2', 'geometry'])
             report_dict[layer_key]['geometrien']['geom_overlap'] = df_overlap
+        # Neu
+        report_object.add_geom_entry(
+            layer_key,
+            'geom_overlap',
+            df_overlap
+        )
