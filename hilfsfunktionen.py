@@ -141,17 +141,15 @@ def handle_rl_and_dl(
     layer_rohrleitungen,
     layer_durchlaesse,
     params_processing,
-    report_dict,
-    report_object=None
+    report_object
 ):
     """
     Falls rl und dl vorhanden sind werden sie zu einem Layer zusammengefuehrt
-    Dazu wird ein Eintrag in params_processing und report_dict erstellt
+    Dazu wird ein Eintrag in params_processing und report_object erstellt
     :param QgsVectorLayer layer_rohrleitungen
     :param QgsVectorLayer layer_durchlaesse
     :param dict params_processing: alle benannten Parameter
-    :param dict report_dict
-    :param layerReport report_object: Report-Objekt, falls vorhanden
+    :param layerReport report_object
     """
     if layer_rohrleitungen and layer_durchlaesse:
         layer_rldl = merge_rl_dl(
@@ -168,7 +166,7 @@ def handle_rl_and_dl(
             },
         }
         report_object.add_rldl()
-        report_dict['layer_rldl'] = {'geometrien':{}}
+
 
 def merge_rl_dl(
     params

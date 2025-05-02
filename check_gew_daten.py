@@ -52,7 +52,7 @@ from .defaults import (
 )
 
 from .attributpruefung import (
-    check_missing_fields,
+    handle_test_missing_fields,
     handle_tests_attributes
 )
 
@@ -184,7 +184,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             'wehre',
             'schaechte'
         ]  # wichtig für die Reihenfolge der Tests; in dictionaries kann diese variieren (!)
-        for layer_typ, layer in zip(
+        for layer_key, layer in zip(
             list_layer_types ,
             [
                 layer_gew,
@@ -196,7 +196,13 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         ):
             if layer:
                 list_crs.append(layer.crs().authid())
-                layer_dict[layer_typ] = {'layer': layer}
+                ft_count = layer.featureCount() if layer.featureCount() else 0
+                layer_steps = 100.0/ft_count if ft_count != 0 else 0
+                layer_dict[layer_key] = {
+                    'layer': layer,
+                    'count': ft_count,
+                    'steps': layer_steps
+                }
         if len(set(list_crs)) == 1:
             crs_out = list_crs[0]  # fuer die Ergebnisausgabe
         else:
@@ -216,7 +222,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         }
 
         # dictionary fuer Feedback / Fehlermeldungen
-        report_dict = create_report_dict(params_processing)
         report_object = layerReport(layer_dict)
 
         # rl und dl zusammenfassen fuer gemeinsame Auswertung, wenn beide vorhanden      
@@ -224,7 +229,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             layer_rohrleitungen,
             layer_durchlaesse,
             params_processing,
-            report_dict,
             report_object
         )
         feedback.setProgressText('Abgeschlossen \n ')
@@ -234,21 +238,18 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         # Hauptfunktion
         def main_check(
             layer_key,
-            report_dict,
             report_object,
             params_processing,
-            feedback,
             i_run
         ):
             """
             Diese Hauptfunktion wird durchlaufen, um die Vektorobjekte aller Layer zu pruefen (Attribute + Geometrien)
             :param str key
-            :param dict report_dict
             :param layerReport report_object
             :param dict params_processing
-            :param QgsProcessingFeedback feedback
             :param int i_run: Zaehler fuers feedback
             """
+            feedback = params_processing['feedback']
             key = layer_key
             layer = params_processing['layer_dict'][layer_key]['layer']
             layer_steps = params_processing['layer_dict'][layer_key]['steps']
@@ -261,10 +262,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
             # Sind die pflichtfelder vorhanden?
             feedback.setProgressText('> Prüfe benötigte Attributfelder...')
-            check_missing_fields(
+            handle_test_missing_fields(
                 layer_key,
                 layer,
-                report_dict,
                 report_object,
                 pflichtfelder,
                 params_processing
@@ -277,7 +277,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             handle_tests_attributes(
                 layer_key,
                 layer,
-                report_dict,
                 report_object,
                 params_processing
             )
@@ -291,7 +290,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 layer,
                 layer_key,
                 layer_steps,
-                report_dict,
                 report_object,
                 feedback
             )
@@ -299,7 +297,6 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             # Geometrien pruefen durch Vergleich mit anderen Geometrien
             handle_tests_geoms_comparisons(
                 layer_key,
-                report_dict,
                 report_object,
                 params_processing
             )
@@ -312,13 +309,11 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         feedback.setProgressText('-------------------------')
         i = 0
         for key in list_layer_types:
-            if key in report_dict.keys():
+            if key in params_processing['layer_dict'].keys():
                 main_check(
                     key,
-                    report_dict,
                     report_object,
                     params_processing,
-                    feedback,
                     i
                 )
                 i = i+1
@@ -328,17 +323,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         # 1 report_dict bereinigen
         if not test_output_all:
             feedback.setProgressText('Bereinige Fehlerliste...')
-            # Alt
-            clean_report_dict(report_dict, feedback)
-            # Neu
-            report_dict2 = report_object.prepare_report_dict(feedback)
+            report_dict_prepared = report_object.prepare_report_dict(feedback)
             feedback.setProgressText('Abgeschlossen \n ')
             
 
         # 2 Ausgabe schreiben
         feedback.setProgressText('Generiere Layer / Ausgabe...')
         vector_layer_list, list_messages = create_layers_from_report_dict(
-            report_dict2, #report_dict,
+            report_dict_prepared,
             crs_out, feedback
         )
         feedback.setProgressText('Abgeschlossen \n ')

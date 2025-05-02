@@ -1,4 +1,4 @@
-def get_missing_fields(layer_key, layer, pflichtfelder):
+def check_missing_fields(layer_key, layer, pflichtfelder):
     """
     Diese Funktion prueft, ob alle Pflichtfelder vorhanden sind
     :param str layer_key
@@ -13,32 +13,37 @@ def get_missing_fields(layer_key, layer, pflichtfelder):
     ]
     return missing_fields
 
-def check_missing_fields(layer_key, layer, report_dict, report_object ,pflichtfelder, params_processing):
+
+def handle_test_missing_fields(
+    layer_key,
+    layer,
+    report_object,
+    pflichtfelder,
+    params_processing
+):
     """
     Diese Funktion fuegt die fehlenden Felder in das report_dict ein
     :param str layer_key
     :param QgsVectorLayer layer
-    :param dict report_dict
     :param layerReport report_object
     :param dict pflichtfelder
     :param dict params_processing
     """ 
-    missing_fields = get_missing_fields(layer_key, layer, pflichtfelder)
+    missing_fields = check_missing_fields(layer_key, layer, pflichtfelder)
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
-    report_dict[layer_key]['attribute']['missing_fields'] = missing_fields
     report_object.add_attribute_entry(
         layer_key,
         'missing_fields',
         missing_fields,
-        accept_empty = False
+        accept_empty=True
     )
     if layer_key == 'gewaesser' and ereign_gew_id_field in missing_fields:
         params_processing['gew_primary_key_missing'] = True
 
+
 def handle_tests_attributes(
     layer_key,
     layer,
-    report_dict,
     report_object,
     params_processing
 ):
@@ -46,12 +51,14 @@ def handle_tests_attributes(
     Fuehrt die Attributpruefungen durch
     :param str layer_key
     :param QgsVectorLayer layer
-    :param dict report_dict
     :param layerReport report_object
     :param dict params_processing
     """
-    missing_fields = report_dict[layer_key]['attribute']['missing_fields']
-    missing_fields = report_object.report_dict[layer_key]['attribute']['missing_fields']
+    missing_fields = report_object.get_report_entry([
+        layer_key,
+        'attribute',
+        'missing_fields'
+    ])
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     feedback = params_processing['feedback']
     if ereign_gew_id_field in missing_fields:
@@ -67,17 +74,16 @@ def handle_tests_attributes(
             layer_key,
             layer,
             ereign_gew_id_field,
-            report_dict,
             report_object,
             params_processing,
             feedback
         )
 
+
 def check_primary_and_foreign_key(
     layer_key,
     layer,
     ereign_gew_id_field,
-    report_dict,
     report_object,
     params_processing,
     feedback
@@ -87,7 +93,6 @@ def check_primary_and_foreign_key(
     :param str layer_key
     :param QgsVectorLayer layer
     :param str ereign_gew_id_field
-    :param dict report_dict
     :param layerReport report_object
     :param dict params_processing
     :param QgsProcessingFeedback feedback
@@ -113,10 +118,6 @@ def check_primary_and_foreign_key(
         list_primary_key_duplicat = [
             lst for lst in prim_key_dict.values() if len(lst) > 1
         ]
-        if len(list_primary_key_empty) > 0:
-            report_dict[layer_key]['attribute']['primary_key_empty'] = list_primary_key_empty
-        if len(list_primary_key_duplicat) > 0:
-            report_dict[layer_key]['attribute']['primary_key_duplicat'] = list_primary_key_duplicat
         report_object.add_attribute_entry(
             layer_key,
             'primary_key_empty',
@@ -156,10 +157,6 @@ def check_primary_and_foreign_key(
                         # Der angegebene Gewaesserschluessel(=Gewaessername)
                         # ist nicht im Gewaesserlayer vergeben
                         list_gew_key_invalid.append(feature.id())
-            if len(list_gew_key_empty) > 0:
-                report_dict[layer_key]['attribute']['gew_key_empty'] = list_gew_key_empty
-            if len(list_gew_key_invalid) > 0:
-                report_dict[layer_key]['attribute']['gew_key_invalid'] = list_gew_key_invalid
             report_object.add_attribute_entry(
                 layer_key,
                 'gew_key_empty',

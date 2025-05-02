@@ -30,7 +30,7 @@ from .hilfsfunktionen import (
 
 
 class layerReport:
-    def __init__(self,layer_dict):
+    def __init__(self, layer_dict):
         """
         Initiiert die Klasse mit self.report_dict = {
             'gewaesser': {
@@ -141,7 +141,7 @@ class layerReport:
     
     def get_report_dict(self):
         """
-        Gibt das Report-Dict zurueck
+        Gibt das komplette Report-Dict zurueck
         :return: dict
         """
         return self.report_dict
