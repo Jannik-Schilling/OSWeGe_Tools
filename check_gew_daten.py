@@ -62,8 +62,6 @@ from .geometriepruefungen import (
 )
 
 from .check_gew_report import (
-    clean_report_dict,
-    create_report_dict,
     create_layers_from_report_dict,
     save_layer_to_file,
     layerReport

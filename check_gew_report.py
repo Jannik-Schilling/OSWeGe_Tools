@@ -160,59 +160,6 @@ class layerReport:
 
 
 
-def create_report_dict(params_processing):
-    """
-    Erstellt das Dictionary, dass alle Informationen fuer den Bericht enthaelt
-    Aufbau:     
-    report_dict = {
-        'gewaesser': {
-            'name': 'so heisst die Datei',
-            'attribute': {
-                'missing_fields': [],
-                'primary_key_empty': [id1, id2],
-                'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
-            },
-            'geometrien': {
-                'fehler1': [],
-                'fehler2': []
-            }
-        },
-        'rohrleitungen': {
-            'name': 'so heisst die Datei",
-            'attribute': {
-                'missing_fields': [],
-                #'primary_key_empty': [id1, id2],
-                #'primary_key_duplicat': [[id3, id4],[id5, id6, id7]],
-                'gew_key_empty': [id1, id2],
-                'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
-            },
-            'geometrien': {
-                'fehler1': [],
-                'fehler2': []
-            }
-        }
-    }
-    :param dict params_processing: ein Dictionary mit allen wichtigen Parametern fuer die Pruefungsroutine
-    :return: dict
-    """
-    report_dict = {}
-    for key, value in params_processing['layer_dict'].items():
-        layer = value['layer']
-        # Anzahl Objekte fuer das Feedback
-        ft_count = layer.featureCount() if layer.featureCount() else 0
-        layer_steps = 100.0/ft_count if ft_count != 0 else 0
-        params_processing['layer_dict'][key].update({
-            'count': ft_count,
-            'steps': layer_steps
-        })
-        report_dict[key] = {
-            'name': layer.name(),
-            'attribute': {},
-            'geometrien': {}
-        }
-    return report_dict
-
-
 # Aufraeumfunktionen
 def replace_lst_ids(series_i, dict_repl):
     """
@@ -237,17 +184,6 @@ def join_list_items(x):
     else:
         return str(x) 
     
-
-def listcol_to_str (df, column_name):
-    """
-    Fuegt in df in einer Spalte die Listen zu Strings zusammen
-    :param pd.DataFrame df
-    :param str column_name
-    :return: pd.DataFrame
-    """
-    df[column_name] = df[column_name].apply(join_list_items)
-    return df
-    
     
 def delete_column_if_exists(df, column_names):
     """
@@ -261,17 +197,6 @@ def delete_column_if_exists(df, column_names):
         df = df.drop(columns=columns_to_delete)
     return df
 
-def delete_rows_with_zero(df, column_names):
-    """
-    Loescht Zeilen, wenn die Werte in den Spalten column_names 0 sind
-    :param pd.DataFrame df
-    :param list column_names 
-    :return: pd.DataFrame
-    """
-    mask = (df[column_names] == 0).all(axis=1)
-    df_filtered = df[~mask]
-    df_filtered.reset_index(drop=True, inplace=True)
-    return df_filtered
 
 def replace_values_with_strings(df, replace_dict):
     """
@@ -315,68 +240,6 @@ def replace_report_dict_keys(report_dict, replacement_dict):
                         report_dict[layer_key][error_type][replacement_dict[error_name]] = report_dict[layer_key][error_type].pop(error_name)
     
     
-def clean_report_dict(report_dict, feedback):
-    """
-    Loescht leere Listen und Dicts im report_dict
-    :param dict report_dict
-    :param QgsProcessingFeedback feedback
-    """
-    step_temp = 100/len(report_dict)
-    for i, key in enumerate(report_dict.keys()):
-        # Ausnahmen und feedback
-        if feedback.isCanceled():
-            break
-        if key == 'Hinweis':
-            continue
-        feedback.setProgress(int((i+1) * step_temp))
-        for rep_section in ['attribute','geometrien']:
-            if not rep_section in report_dict[key].keys():
-                pass
-            else:
-                if rep_section == 'geometrien':
-                    if key == 'gewaesser':
-                        for error_name in ['wasserscheiden', 'senken']:
-                            if error_name in report_dict[key][rep_section].keys():
-                                df = report_dict[key][rep_section][error_name]
-                                # Listen durch Strings ersetzen
-                                df2 = listcol_to_str (df, 'feature_id')
-                                report_dict[key][rep_section][error_name] = df2
-
-                    if key in ['rohrleitungen', 'durchlaesse', 'layer_rldl']:
-                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
-                            # Unbenoetige Spalten loeschen
-                            df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
-                            # Unbenoetige Zeilen loeschen
-                            df3 = delete_rows_with_zero(df2, ['Anzahl','Lage','Richtung'])
-                            # Fehlercodes mit Text ersetzen
-                            df4 = replace_values_with_strings(df3, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df4
-
-                    if key in ['schaechte', 'wehre']:
-                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
-                            # Unbenoetige Zeilen loeschen
-                            df2 = delete_rows_with_zero(df, ['Lage'])
-                            # Fehlercodes mit Text ersetzen
-                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df3
-                        if 'geom_schacht_auf_rldl' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_schacht_auf_rldl']
-                            # Unbenoetige Zeilen loeschen
-                            df2 = delete_rows_with_zero(df, ['Lage_rldl'])
-                            # Fehlercodes mit Text ersetzen
-                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_schacht_auf_rldl'] = df3
-                            
-                report_dict[key][rep_section] = {
-                    sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
-                }
-                if len(report_dict[key][rep_section]) == 0:
-                    del report_dict[key][rep_section]
-    # Fehlernamen ersetzen
-    replace_report_dict_keys(report_dict, dict_report_texts)
-
 # Layererstellung
 def create_feature_from_attrlist(
     attrlist,
