@@ -94,9 +94,10 @@ def get_line_to_check(
         # eines oder mehrere Gewaesser gefunden
         list_sum = []
         for gew_id in intersecting_ids:
-            # identifiziere das Gewaesser mit dem geringsten Abstand der Stützpunkte in Summe
+            # identifiziere das Gewaesser mit dem geringsten Abstand der Stuetzpunkte in Summe
             gew_ft_candidate = other_layer.getFeature(gew_id)
             list_sum.append(sum([gew_ft_candidate.geometry().distance(vtx) for vtx in list_vtx_geom]))
+        # ToDo: Ausnahme für Schaechte, die am Ende oder Anfang einer Linie liegen und evtl. mehrere mit distance=0 haben
         position_in_list = list_sum.index(min(list_sum))
         line_feature = other_layer.getFeature(intersecting_ids[position_in_list])
         return line_feature
@@ -125,7 +126,7 @@ def get_line_candidates_ids(
 def get_geom_type(error_name_long, layer_key=None):
     """
     Ermittelt den passenden Geometrietyp (Point, Linstring, NoGeometry) fuer den Output-Layer
-    :param str errror_type
+    :param str error_type
     :param str layer_key
     :return str: Geometrietyp
     """
