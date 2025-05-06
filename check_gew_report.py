@@ -11,7 +11,10 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from qgis.PyQt.QtCore import QVariant
+try:
+    from qgis.PyQt.QtCore import QMetaType
+except BaseException:
+    from qgis.PyQt.QtCore import QVariant
 
 from .defaults import (
     dict_report_texts,
@@ -19,68 +22,142 @@ from .defaults import (
     output_layer_prefixes
 )
 
-from .hilfsfunktionen import get_geom_type
+from .hilfsfunktionen import (
+    get_geom_type,
+    get_entry_from_dict,
+    is_path_in_dict
+)
 
 
-def create_report_dict(params, is_test_version=False):
-    """
-    Erstellt das Dictionary, dass alle Informationen fuer den Bericht enthaelt
-    Aufbau:     
-    report_dict = {
-        'gewaesser': {
-            'name': 'so heisst die Datei',
-            'attribute': {
-                'missing_fields': [],
-                'primary_key_empty': [id1, id2],
-                'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
+class layerReport:
+    def __init__(self, layer_dict):
+        """
+        Initiiert die Klasse mit self.report_dict = {
+            'gewaesser': {
+                'name': 'so heisst die Datei',
+                'attribute': {
+                    'missing_fields': [],
+                    'primary_key_empty': [id1, id2],
+                    'primary_key_duplicat': [[id3, id4],[id5, id6, id7]]
+                },
+                'geometrien': {
+                    'fehler1': [],
+                    'fehler2': []
+                }
             },
-            'geometrien': {
-                'fehler1': [],
-                'fehler2': []
-            }
-        },
-        'rohrleitungen': {
-            'name': 'so heisst die Datei",
-            'attribute': {
-                'missing_fields': [],
-                #'primary_key_empty': [id1, id2],
-                #'primary_key_duplicat': [[id3, id4],[id5, id6, id7]],
-                'gew_key_empty': [id1, id2],
-                'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
-            },
-            'geometrien': {
-                'fehler1': [],
-                'fehler2': []
+            'rohrleitungen': {
+                'name': 'so heisst die Datei",
+                'attribute': {
+                    'missing_fields': [],
+                    #'primary_key_empty': [id1, id2],
+                    #'primary_key_duplicat': [[id3, id4],[id5, id6, id7]],
+                    'gew_key_empty': [id1, id2],
+                    'gew_key_invalid': [id4, id5] /  # nicht im layer_gew
+                },
+                'geometrien': {
+                    'fehler1': [],
+                    'fehler2': []
+                }
             }
         }
-    }
-    :param dict params: ein Dictionary mit allen wichtigen Parametern fuer die Pruefungsroutine
-    :param bool is_test_version: True, wenn die Funktion in einer Testversion laeuft und ein entsprechender Hinweis in die Datei geschrieben wird
-    :return: dict
-    """
-    report_dict = {}
-    if is_test_version:
-        report_dict['Hinweis'] = (
-            'Diese Datei wurde noch mit einer Testversion '
-            + 'des Plugins erstellt und enthält daher bisher '
-            + 'nur die Feature-Ids der fehlerhaften Objekte sowie einen '
-            + 'Verweis auf die Fehlerart als (numerischer) Code'
-        )
-    for key, value in params['layer_dict'].items():
-        layer = value['layer']
-        # Anzahl Objekte fuer das Feedback
-        ft_count = layer.featureCount() if layer.featureCount() else 0
-        layer_steps = 100.0/ft_count if ft_count != 0 else 0
-        params['layer_dict'][key].update({
-            'count': ft_count,
-            'steps': layer_steps
-        })
-        report_dict[key] = {
-            'name': layer.name(),
-            'attribute': {},
-            'geometrien': {}
-        }
-    return report_dict
+        :param dict layer_dict: {'layer_name': layer, 'layer_name2': layer2 ...}
+        """
+        self.report_dict = {}
+        for key, value in layer_dict.items():
+            layer = value['layer']
+            self.report_dict[key] = {
+                'name': layer.name(),
+                'attribute': {},
+                'geometrien': {}
+            }
+        # ein Dictionary fuer die Stationierung der Objekte
+        self.stats_dict = dict()
+
+    def add_rldl(self):
+        self.report_dict['layer_rldl'] = {'geometrien':{}}
+
+    def add_attribute_entry(self, layer_key, error_name, entry, accept_empty = False):
+        """
+        Traegt einen neuen Attribut-Fehler ein
+        :param str layer_key
+        :param str error_name
+        :param list or dataframe entry
+        :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
+        """
+        if accept_empty:
+            self.report_dict[layer_key]['attribute'][error_name] = entry
+        else:
+            if len(entry) > 0:
+                self.report_dict[layer_key]['attribute'][error_name] = entry
+
+    def add_geom_entry(self, layer_key, error_name, entry, accept_empty = False):
+        """
+        Traegt einen neuen Attribut-Fehler ein
+        :param str layer_key
+        :param str error_name
+        :param list or dataframe entry
+        :param bool accept_empty: Wenn True, werden auch leere Eintraege aktzeptiert
+        """
+        if accept_empty:
+            self.report_dict[layer_key]['geometrien'][error_name] = entry
+        else:
+            if len(entry) > 0:
+                self.report_dict[layer_key]['geometrien'][error_name] = entry
+
+    def prepare_report_dict(self, feedback):
+        """
+        Bereitet self.report_dict fuer die Ausgabe vor
+        :param QgsProcessingFeedback feedback
+        """
+        step_temp = 100/len(self.report_dict)
+        for i, layer_key in enumerate(['rohrleitungen', 'durchlaesse', 'layer_rldl', 'schaechte', 'wehre']):
+            if feedback.isCanceled():
+                break
+            feedback.setProgress(int((i+1) * step_temp))
+            if layer_key not in self.report_dict.keys():
+                continue
+            else:
+                for error_name in ['geom_ereign_auf_gew','geom_schacht_auf_rldl']:
+                    if error_name in self.report_dict[layer_key]['geometrien'].keys():
+                        df = self.report_dict[layer_key]['geometrien'][error_name]
+                        # Unbenoetige Spalten loeschen
+                        df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
+                        # # Fehlercodes mit Text ersetzen
+                        df3 = replace_values_with_strings(df2, dict_ereign_fehler)
+                        self.report_dict[layer_key]['geometrien'][error_name] = df3
+        resulting_dict = self.report_dict.copy()
+        for layer_key in resulting_dict.keys():
+            for rep_section in ['attribute', 'geometrien']:
+                if not rep_section in resulting_dict[layer_key].keys():
+                    pass
+                else:
+                    resulting_dict[layer_key][rep_section] = {
+                        sub_section: elem for sub_section, elem in resulting_dict[layer_key][rep_section].items() if len(elem) != 0
+                    }
+                    if len(resulting_dict[layer_key][rep_section]) == 0:
+                        del resulting_dict[layer_key][rep_section]
+        replace_report_dict_keys(resulting_dict, dict_report_texts)
+        return resulting_dict
+    
+    def get_report_dict(self):
+        """
+        Gibt das komplette Report-Dict zurueck
+        :return: dict
+        """
+        return self.report_dict
+        
+    def get_report_entry(self, key_list):
+        """
+        Gibt das Objekt aus dem report dict zurück, wenn der Pfad existiert
+        :param list key_list
+        """
+        if not key_list:
+            return None
+        elif is_path_in_dict(self.report_dict, key_list):
+            get_entry_from_dict(self.report_dict, key_list)
+        else:
+            return None
+
 
 
 # Aufraeumfunktionen
@@ -98,22 +175,14 @@ def replace_lst_ids(series_i, dict_repl):
             pass
     return series_i
 
-
-def listcol_to_str (df, column_name):
+def join_list_items(x):
     """
-    Fuegt in df in einer Spalte die Listen zu Strings zusammen
-    :param pd.DataFrame df
-    :param str column_name
-    :return: pd.DataFrame
+    Fuegt alles in x zu einem String zusammen
     """
-    def join_list_items(x):
-        if isinstance(x, list):
-            return ', '.join(map(str, x))
-        else:
-            return str(x) 
-    
-    df[column_name] = df[column_name].apply(join_list_items)
-    return df
+    if isinstance(x, list):
+        return ', '.join(map(str, x))
+    else:
+        return str(x) 
     
     
 def delete_column_if_exists(df, column_names):
@@ -128,17 +197,6 @@ def delete_column_if_exists(df, column_names):
         df = df.drop(columns=columns_to_delete)
     return df
 
-def delete_rows_with_zero(df, column_names):
-    """
-    Loescht Zeilen, wenn die Werte in den Spalten column_names 0 sind
-    :param pd.DataFrame df
-    :param list column_names 
-    :return: pd.DataFrame
-    """
-    mask = (df[column_names] == 0).all(axis=1)
-    df_filtered = df[~mask]
-    df_filtered.reset_index(drop=True, inplace=True)
-    return df_filtered
 
 def replace_values_with_strings(df, replace_dict):
     """
@@ -182,68 +240,6 @@ def replace_report_dict_keys(report_dict, replacement_dict):
                         report_dict[layer_key][error_type][replacement_dict[error_name]] = report_dict[layer_key][error_type].pop(error_name)
     
     
-def clean_report_dict(report_dict, feedback):
-    """
-    Loescht leere Listen und Dicts im report_dict
-    :param dict report_dict
-    :param QgsProcessingFeedback feedback
-    """
-    step_temp = 100/len(report_dict)
-    for i, key in enumerate(report_dict.keys()):
-        # Ausnahmen und feedback
-        if feedback.isCanceled():
-            break
-        if key == 'Hinweis':
-            continue
-        feedback.setProgress(int((i+1) * step_temp))
-        for rep_section in ['attribute','geometrien']:
-            if not rep_section in report_dict[key].keys():
-                pass
-            else:
-                if rep_section == 'geometrien':
-                    if key == 'gewaesser':
-                        for error_name in ['wasserscheiden', 'senken']:
-                            if error_name in report_dict[key][rep_section].keys():
-                                df = report_dict[key][rep_section][error_name]
-                                # Listen durch Strings ersetzen
-                                df2 = listcol_to_str (df, 'feature_id')
-                                report_dict[key][rep_section][error_name] = df2
-
-                    if key in ['rohrleitungen', 'durchlaesse', 'layer_rldl']:
-                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
-                            # Unbenoetige Spalten loeschen
-                            df2 = delete_column_if_exists(df, ['vtx_stat', 'start', 'stop'])
-                            # Unbenoetige Zeilen loeschen
-                            df3 = delete_rows_with_zero(df2, ['Anzahl','Lage','Richtung'])
-                            # Fehlercodes mit Text ersetzen
-                            df4 = replace_values_with_strings(df3, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df4
-
-                    if key in ['schaechte', 'wehre']:
-                        if 'geom_ereign_auf_gew' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_ereign_auf_gew']
-                            # Unbenoetige Zeilen loeschen
-                            df2 = delete_rows_with_zero(df, ['Lage'])
-                            # Fehlercodes mit Text ersetzen
-                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_ereign_auf_gew'] = df3
-                        if 'geom_schacht_auf_rldl' in report_dict[key][rep_section].keys():
-                            df = report_dict[key][rep_section]['geom_schacht_auf_rldl']
-                            # Unbenoetige Zeilen loeschen
-                            df2 = delete_rows_with_zero(df, ['Lage_rldl'])
-                            # Fehlercodes mit Text ersetzen
-                            df3 = replace_values_with_strings(df2, dict_ereign_fehler)
-                            report_dict[key][rep_section]['geom_schacht_auf_rldl'] = df3
-                            
-                report_dict[key][rep_section] = {
-                    sub_section: elem for sub_section, elem in report_dict[key][rep_section].items() if len(elem) != 0
-                }
-                if len(report_dict[key][rep_section]) == 0:
-                    del report_dict[key][rep_section]
-    # Fehlernamen ersetzen
-    replace_report_dict_keys(report_dict, dict_report_texts)
-
 # Layererstellung
 def create_feature_from_attrlist(
     attrlist,
@@ -324,8 +320,11 @@ def create_layer_from_df(
     )
     vector_layer.startEditing()
     for  column_name in layer_fields:
+        try:
         # QgsField is deprecated since QGIS 3.38 -> QMetaType
-        vector_layer.addAttribute(QgsField(column_name, QVariant.String))
+            vector_layer.addAttribute(QgsField(column_name, QMetaType.Type.QString,))
+        except:  # fuer aeltere QGIS Versionen (vermutl. vor 3.8)
+            vector_layer.addAttribute(QgsField(column_name, QVariant.String))
     vector_layer.updateFields()
 
     # Objekte 
@@ -392,9 +391,8 @@ def create_layers_from_report_dict(report_dict, crs_out, feedback):
                             )
                             vector_layer_list = vector_layer_list+[layer_neu]
     return vector_layer_list, list_messages
-    
-    
-    
+
+
 def save_layer_to_file(
     vector_layer_list,
     fname
@@ -424,7 +422,7 @@ def save_layer_to_file(
                 transform_context,
                 options
             )
-    except BaseException:        # for older QGIS versions
+    except BaseException:  # for older QGIS versions
         for v_layer in vector_layer_list:
             fname_layer = fname+'|layername='+v_layer.name()
             QgsVectorFileWriter.writeAsVectorFormat(

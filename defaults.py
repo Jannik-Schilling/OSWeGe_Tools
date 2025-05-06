@@ -18,7 +18,7 @@ pflichtfelder = {
     'wehre':['obj_nr_gu', 'name', 'gu_cd', 'wehr'],
     'schaechte':['obj_nr_gu', 'name', 'gu_cd', 'scha'],
 }
-# Schluessel zur Identifikation des Gewaessers bei Ereignissen
+# # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd", gleichzeitig Schluessel zur Identifikation des Gewaessers bei Ereignissen
 list_ereign_gew_id_fields = ['gu_cd', 'ba_cd']
 
 # zu pruefenden Mindestlaenge fuer Gewaesser
@@ -28,7 +28,7 @@ minimallaenge_gew = 0.5
 findGew_tolerance_dist = 0.2
 
 
-# Fehler beim Vergleich von Ereignisssen auf Gewässer
+# Fehler beim Vergleich von Ereignisssen auf Gewaesser
 dict_ereign_fehler = {
     'Anzahl': {
         0: 'korrekt',
