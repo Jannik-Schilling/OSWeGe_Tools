@@ -160,7 +160,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         timeLogger = simpleTimeStepLogger()
         timeLogger.start_logging()
         test_output_all = False  # Ueberspringt das bereinigen des report_dict, wenn True
-        is_test_version = True  # Hinweis zum Output, Ausgabe der Zeiten, wenn True
+        is_test_version = False  # Hinweis zum Output, Ausgabe der Zeiten, wenn True
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
