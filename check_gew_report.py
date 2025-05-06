@@ -153,10 +153,11 @@ class layerReport:
         """
         if not key_list:
             return None
-        elif is_path_in_dict(self.report_dict, key_list):
-            get_entry_from_dict(self.report_dict, key_list)
         else:
-            return None
+            if is_path_in_dict(self.report_dict, key_list):
+                return get_entry_from_dict(self.report_dict, key_list)
+            else:
+                return None
 
 
 

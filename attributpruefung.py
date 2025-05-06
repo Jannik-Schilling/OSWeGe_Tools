@@ -6,6 +6,7 @@ from .hilfsfunktionen import (
 def check_missing_fields(layer_key, layer, pflichtfelder):
     """
     Diese Funktion prueft, ob alle Pflichtfelder vorhanden sind
+    This function checks if all required fields are present
     :param str layer_key
     :param QgsVectorLayer layer
     :param dict pflichtfelder
@@ -28,6 +29,7 @@ def handle_test_missing_fields(
 ):
     """
     Diese Funktion fuegt die fehlenden Felder in das report_dict ein
+    This function adds the missing fields to the report_dict
     :param str layer_key
     :param QgsVectorLayer layer
     :param layerReport report_object
@@ -54,18 +56,21 @@ def handle_tests_attributes(
 ):
     """
     Fuehrt die Attributpruefungen durch
+    This function performs the attribute tests
     :param str layer_key
     :param QgsVectorLayer layer
     :param layerReport report_object
     :param dict params_processing
     """
-    missing_fields = report_object.report_dict[layer_key]['attribute']['missing_fields']
-    print(is_path_in_dict(report_object.report_dict, [layer_key,'attribute','missing_fields']))
-    #missing_fields = report_object.get_report_entry([
-    #    layer_key,
-    #    'attribute',
-    #    'missing_fields'
-    #])
+    missing_fields = report_object.get_report_entry([
+       layer_key,
+       'attribute',
+       'missing_fields'
+    ])
+    if not missing_fields:
+        # in case of None set an empty list, here
+        missing_fields = []
+
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     feedback = params_processing['feedback']
     if ereign_gew_id_field in missing_fields:
