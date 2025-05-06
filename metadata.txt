@@ -5,13 +5,15 @@
 [general]
 name=oswege_tools
 qgisMinimumVersion=3.0
-description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden
+description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
 version=0.8
 
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug), fg_ae-Abschnitte erstellen
+about=Folgende Funktionen sind zur Zeit verfügbar: Abfrage der Stationierung von Gewässerlinien, Prüfroutine Gewässerlinien (Verarbeitungswerkzeug), fg_ae-Abschnitte erstellen   /   The following functions are currently available: Query of the stationing of watercourse lines, check routine watercourse data (processing tool), create fg_ae sections
+
+    Dieses Plugin wurde/wird entwickelt im Rahmen des Projekts OSWeGe, (gefördert durch das BMUV, Förderkennzeichen 67DAS263)
 
 tracker=https://github.com/Jannik-Schilling/OSWeGe_Tools/issues
 repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
