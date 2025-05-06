@@ -97,7 +97,7 @@ def get_line_to_check(
             # identifiziere das Gewaesser mit dem geringsten Abstand der Stuetzpunkte in Summe
             gew_ft_candidate = other_layer.getFeature(gew_id)
             list_sum.append(sum([gew_ft_candidate.geometry().distance(vtx) for vtx in list_vtx_geom]))
-        # ToDo: Ausnahme für Schaechte, die am Ende oder Anfang einer Linie liegen und evtl. mehrere mit distance=0 haben
+        # ToDo: ? Ausnahme für Schaechte, die am Ende oder Anfang einer Linie liegen und evtl. mehrere mit distance=0 haben
         position_in_list = list_sum.index(min(list_sum))
         line_feature = other_layer.getFeature(intersecting_ids[position_in_list])
         return line_feature
