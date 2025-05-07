@@ -57,7 +57,10 @@ from .defaults import findGew_tolerance_dist
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'stationierung_dialog_base.ui'))
+    os.path.dirname(__file__),
+    'userinterfaces',
+    'stationierung_dialog_base.ui')
+)
 
 QgsInstance=QgsProject.instance()
 

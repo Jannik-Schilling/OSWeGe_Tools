@@ -46,7 +46,7 @@ from qgis.core import (
 )
 
 from .defaults import (
-    list_ereign_gew_id_fields,
+    primaerschluessel_gew,
     output_layer_prefixes,
     pflichtfelder
 )
@@ -212,7 +212,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         params_processing = {
             'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
-            'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
+            'ereign_gew_id_field': primaerschluessel_gew,  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
             'gew_primary_key_missing': False,
             'field_merged_id': 'merged_id',  # Feldname fuer neue ID, wenn rl und dl vorhanden
             'emptystrdef': [NULL, ''],  # moegliche "Leer"-Definitionen für Zeichenketten

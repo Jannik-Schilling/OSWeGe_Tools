@@ -10,6 +10,9 @@ feld_typen = {
     'Real' : 'float'
 }
 
+# Relativer Pfad fuer die User config
+file_config_user = "./config/config_user.json"
+
 # Pflichtfelder: der erste ist Primaerschluessel bei gewässern
 pflichtfelder = {
     'gewaesser': ['ba_cd', 'gu_cd'],
@@ -20,6 +23,7 @@ pflichtfelder = {
 }
 # # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd", gleichzeitig Schluessel zur Identifikation des Gewaessers bei Ereignissen
 list_ereign_gew_id_fields = ['gu_cd', 'ba_cd']
+primaerschluessel_gew = 'ba_cd'
 
 # zu pruefenden Mindestlaenge fuer Gewaesser
 minimallaenge_gew = 0.5
