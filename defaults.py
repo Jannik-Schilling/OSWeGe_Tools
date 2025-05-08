@@ -12,6 +12,8 @@ feld_typen = {
 
 # Relativer Pfad fuer die User config
 file_config_user = "./config/config_user.json"
+file_config_for_reset = './config/config_reset.json'
+
 
 # Pflichtfelder: der erste ist Primaerschluessel bei gewässern
 pflichtfelder = {
@@ -21,7 +23,8 @@ pflichtfelder = {
     'wehre':['obj_nr_gu', 'name', 'gu_cd', 'wehr'],
     'schaechte':['obj_nr_gu', 'name', 'gu_cd', 'scha'],
 }
-# # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd", gleichzeitig Schluessel zur Identifikation des Gewaessers bei Ereignissen
+
+# Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd", gleichzeitig Schluessel zur Identifikation des Gewaessers bei Ereignissen
 list_ereign_gew_id_fields = ['gu_cd', 'ba_cd']
 primaerschluessel_gew = 'ba_cd'
 

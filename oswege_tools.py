@@ -47,6 +47,8 @@ from .resources import *
 # Import the code for the dialog and provider
 from .stationierung_dialog import stationierungDialog
 from .oswegeToolsProvider import oswegeToolsProvider
+from .defaults import file_config_user
+from .config_tools import oswegeToolsConfigDialog
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 
@@ -191,18 +193,34 @@ class oswege_tools_buttons:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = os.path.join(
+        icon_path_stat = os.path.join(
             self.plugin_dir,
             'icons',
             'icon.png')
 
         self.add_action(
-            icon_path,
+            icon_path_stat,
             text=self.tr(u'Stationierung eines Gewässers anzeigen'),
-            callback=self.run,
-            parent=self.iface.mainWindow())
+            callback=self.run_stationierung,
+            parent=self.iface.mainWindow(),
+            add_to_menu=False
+        )
+            
+            
+        icon_path_config = os.path.join(
+            self.plugin_dir,
+            'icons',
+            'config.png')
 
-        # will be set False in run()
+        self.add_action(
+            icon_path_config,
+            text=self.tr(u'Stationierung eines Gewässers anzeigen'),
+            callback=self.run_config,
+            add_to_menu=False
+        )
+
+
+        # will be set False in run_stationierung()
         self.first_start = True
 
         # fuer Processing
@@ -220,7 +238,7 @@ class oswege_tools_buttons:
             self.iface.removeToolBarIcon(action)
 
 
-    def run(self):
+    def run_stationierung(self):
         """Run method that performs all the real work"""
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
@@ -232,3 +250,11 @@ class oswege_tools_buttons:
             )
         self.dlg.show()
 
+    def run_config(self):
+        """Run config method"""
+        if self.first_start == True:
+            self.first_start = False
+            self.dlg_config = oswegeToolsConfigDialog(
+                json_file=file_config_user
+            )
+        self.dlg.show()
