@@ -29,7 +29,7 @@ def get_config_from_json(json_file):
         raise PermissionError(f"Config file {json_file} is not readable")
     with open(json_file, 'r') as f:
         config = json.load(f)
-    return config       
+    return config
     
 class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
     def __init__(self, json_file, parent=None):

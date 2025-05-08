@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <widget class="QDialogButtonBox" name="okButton">
+  <widget class="QDialogButtonBox" name="dialogSaveCancel">
    <property name="geometry">
     <rect>
      <x>20</x>
@@ -45,7 +45,7 @@
     <enum>QTabWidget::Rounded</enum>
    </property>
    <property name="currentIndex">
-    <number>1</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="tab_1">
     <attribute name="title">
@@ -188,15 +188,6 @@
      </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::TopToBottom</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::IconMode</enum>
      </property>
     </widget>
     <widget class="QLabel" name="label_7">
@@ -380,9 +371,9 @@
     <widget class="QComboBox" name="comboBoxPrimrschl">
      <property name="geometry">
       <rect>
-       <x>380</x>
+       <x>330</x>
        <y>60</y>
-       <width>121</width>
+       <width>131</width>
        <height>21</height>
       </rect>
      </property>
@@ -393,7 +384,7 @@
     <widget class="QLabel" name="label_14">
      <property name="geometry">
       <rect>
-       <x>380</x>
+       <x>330</x>
        <y>40</y>
        <width>131</width>
        <height>16</height>
@@ -482,69 +473,69 @@
       <enum>QListView::ListMode</enum>
      </property>
     </widget>
-    <widget class="QToolButton" name="toolButton_gew">
-     <property name="geometry">
-      <rect>
-       <x>240</x>
-       <y>40</y>
-       <width>21</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-    <widget class="QToolButton" name="toolButton_rl">
+    <widget class="QPushButton" name="pushButtonRl">
      <property name="geometry">
       <rect>
        <x>240</x>
        <y>80</y>
-       <width>21</width>
+       <width>41</width>
        <height>20</height>
       </rect>
      </property>
      <property name="text">
-      <string>...</string>
+      <string>ändern</string>
      </property>
     </widget>
-    <widget class="QToolButton" name="toolButton_dl">
+    <widget class="QPushButton" name="pushButtonDl">
      <property name="geometry">
       <rect>
        <x>240</x>
        <y>120</y>
-       <width>21</width>
+       <width>41</width>
        <height>20</height>
       </rect>
      </property>
      <property name="text">
-      <string>...</string>
+      <string>ändern</string>
      </property>
     </widget>
-    <widget class="QToolButton" name="toolButton_wehre">
+    <widget class="QPushButton" name="pushButtonWehre">
      <property name="geometry">
       <rect>
        <x>240</x>
        <y>200</y>
-       <width>21</width>
+       <width>41</width>
        <height>20</height>
       </rect>
      </property>
      <property name="text">
-      <string>...</string>
+      <string>ändern</string>
      </property>
     </widget>
-    <widget class="QToolButton" name="toolButton_schaechte">
+    <widget class="QPushButton" name="pushButtonSchaechte">
      <property name="geometry">
       <rect>
        <x>240</x>
        <y>160</y>
-       <width>21</width>
+       <width>41</width>
        <height>20</height>
       </rect>
      </property>
      <property name="text">
-      <string>...</string>
+      <string>ändern</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButtonGew">
+     <property name="geometry">
+      <rect>
+       <x>240</x>
+       <y>40</y>
+       <width>41</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>ändern</string>
      </property>
     </widget>
    </widget>
@@ -560,7 +551,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>okButton</sender>
+   <sender>dialogSaveCancel</sender>
    <signal>accepted()</signal>
    <receiver>dialogConfig</receiver>
    <slot>accept()</slot>
@@ -576,7 +567,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>okButton</sender>
+   <sender>dialogSaveCancel</sender>
    <signal>rejected()</signal>
    <receiver>dialogConfig</receiver>
    <slot>reject()</slot>
