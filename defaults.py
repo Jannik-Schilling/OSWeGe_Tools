@@ -1,3 +1,5 @@
+import os
+
 class oswScriptType:
     """Klasse fuer die Scripttypen"""
     PROCESSING='PROCESSING'
@@ -9,10 +11,11 @@ feld_typen = {
     'String': 'str',
     'Real' : 'float'
 }
+plugin_dir = os.path.dirname(__file__)
 
 # Relativer Pfad fuer die User config
-file_config_user = "./config/config_user.json"
-file_config_for_reset = './config/config_reset.json'
+file_config_user = os.path.join(plugin_dir,'config','config_user.json')
+file_config_for_reset = os.path.join(plugin_dir,'config','config_reset.json')
 
 
 # Pflichtfelder: der erste ist Primaerschluessel bei gewässern

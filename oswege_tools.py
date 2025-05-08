@@ -92,7 +92,8 @@ class oswege_tools_buttons:
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
-        self.first_start = None
+        self.first_start_stat = None
+        self.first_start_config = None
         
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""
@@ -192,6 +193,19 @@ class oswege_tools_buttons:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        icon_path_config = os.path.join(
+            self.plugin_dir,
+            'icons',
+            'config.png')
+
+        self.add_action(
+            icon_path_config,
+            text=self.tr(u'Das Plugin konfigurieren'),
+            callback=self.run_config,
+            parent=self.iface.mainWindow(),
+            add_to_menu=False,
+            whats_this='Das Plugin konfigurieren'
+        )
 
         icon_path_stat = os.path.join(
             self.plugin_dir,
@@ -205,23 +219,13 @@ class oswege_tools_buttons:
             parent=self.iface.mainWindow(),
             add_to_menu=False
         )
-            
-            
-        icon_path_config = os.path.join(
-            self.plugin_dir,
-            'icons',
-            'config.png')
-
-        self.add_action(
-            icon_path_config,
-            text=self.tr(u'Stationierung eines Gewässers anzeigen'),
-            callback=self.run_config,
-            add_to_menu=False
-        )
-
 
         # will be set False in run_stationierung()
-        self.first_start = True
+        self.first_start_stat = True
+        self.first_start_config = True
+
+
+
 
         # fuer Processing
         self.initProcessing()
@@ -242,19 +246,19 @@ class oswege_tools_buttons:
         """Run method that performs all the real work"""
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
+        if self.first_start_stat == True:
+            self.first_start_stat = False
             self.canvas = iface.mapCanvas()
-            self.dlg = stationierungDialog(
+            self.dlg_stat = stationierungDialog(
                 canvas=self.canvas
             )
-        self.dlg.show()
+        self.dlg_stat.show()
 
     def run_config(self):
         """Run config method"""
-        if self.first_start == True:
-            self.first_start = False
+        if self.first_start_config == True:
+            self.first_start_config = False
             self.dlg_config = oswegeToolsConfigDialog(
                 json_file=file_config_user
             )
-        self.dlg.show()
+        self.dlg_config.show()

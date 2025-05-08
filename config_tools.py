@@ -11,12 +11,15 @@ from .defaults import (
     file_config_for_reset
 )
 
+# files for user interfaces
+plugin_dir = os.path.dirname(__file__)
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
+    plugin_dir,
     'userinterfaces',
     'config_base.ui')
 )
-
 FORM_CLASS_EDIT, _2 = uic.loadUiType(os.path.join(
+    plugin_dir,
     'userinterfaces',
     'edit_config_entry_base.ui')
 )
