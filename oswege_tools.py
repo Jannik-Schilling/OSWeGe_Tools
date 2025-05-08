@@ -257,7 +257,7 @@ class oswege_tools_buttons:
     def run_config(self):
         """Run config method"""
         if self.first_start_config == True:
-            self.first_start_config = False
+            self.first_start_config = True
             self.dlg_config = oswegeToolsConfigDialog(
                 json_file=file_config_user
             )

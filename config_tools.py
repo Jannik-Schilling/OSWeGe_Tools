@@ -154,8 +154,8 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.pushButtonDl.clicked.connect(lambda: self.open_edit_dialog('durchlaesse'))
         self.pushButtonSchaechte.clicked.connect(lambda: self.open_edit_dialog('schaechte'))
         self.pushButtonWehre.clicked.connect(lambda: self.open_edit_dialog('wehre'))
-        #self.dialogSaveCancel.accepted.connect(self.save_config)
-        self.dialogSaveCancel.accepted.connect(self.save_config_test)
+        self.dialogSaveCancel.accepted.connect(self.save_config)
+        #self.dialogSaveCancel.accepted.connect(self.save_config_test)
         self.dialogSaveCancel.accepted.connect(self.close_edit_dialog)
         self.dialogSaveCancel.rejected.connect(self.close_edit_dialog)
         self.restoreButton.clicked.connect(
@@ -238,13 +238,24 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         :return: config as a dictionary
         '''
         last_change = '07.05.2025'  # Todo
-        layer_names = {
-            'gewaesser': self.LayerComboBoxGewaesser.currentLayer(),
-            'rohleitungen': self.LayerComboBoxRL.currentLayer(),
-            'durchlaesse': self.LayerComboBoxDL.currentLayer(),
-            'schaechte': self.LayerComboBoxSchaechte.currentLayer(),
-            'wehre': self.LayerComboBoxWehre.currentLayer()
-        }
+        layer_names = {}
+        for layer_key, layer_i in zip(
+            [
+                'gewaesser',
+                'rohleitungen',
+                'durchlaesse',
+                'schaechte',
+                'wehre'
+            ],
+            [
+                 self.LayerComboBoxGewaesser.currentLayer(),
+                 self.LayerComboBoxRL.currentLayer(),
+                 self.LayerComboBoxDL.currentLayer(),
+                 self.LayerComboBoxSchaechte.currentLayer(),
+                 self.LayerComboBoxWehre.currentLayer()
+            ]
+        ):
+            layer_names[layer_key] = layer_i.name() if layer_i else ''
         dialog_PflichtfeldGew =  [self.WidgetPflichtfeldGew.item(i).text() for i in range(self.WidgetPflichtfeldGew.count())]
         dialog_PflichtfeldRl =  [self.WidgetPflichtfeldRl.item(i).text() for i in range(self.WidgetPflichtfeldRl.count())]
         dialog_flichtfeldDl =  [self.WidgetPflichtfeldDl.item(i).text() for i in range(self.WidgetPflichtfeldDl.count())]
@@ -255,16 +266,18 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         dialog_dict = {
             'last_change': last_change,
             'layer_names': layer_names,
-            'pflichtfelder': {
-                'gewaesser': dialog_PflichtfeldGew,
-                'rohrleitungen': dialog_PflichtfeldRl,
-                'durchlaesser': dialog_flichtfeldDl,
-                'schaechte': dialog_PflichtfeldSchaechte,
-                'wehre': dialog_PflichtfeldWehre
-            },
-            'primaerschluessel_gew': dialog_primaerschluessel,
-            'minimallaminimallaenge_gewenge': dialog_minimallaenge,
-            'findGew_tolerance_dist': 0.2  # ToDo
+            'check_layer_defaults': {
+                'pflichtfelder': {
+                    'gewaesser': dialog_PflichtfeldGew,
+                    'rohrleitungen': dialog_PflichtfeldRl,
+                    'durchlaesse': dialog_flichtfeldDl,
+                    'schaechte': dialog_PflichtfeldSchaechte,
+                    'wehre': dialog_PflichtfeldWehre
+                },
+                'primaerschluessel_gew': dialog_primaerschluessel,
+                'minimallaenge_gew': dialog_minimallaenge,
+                'findGew_tolerance_dist': 0.2  # ToDo
+            }
         }
         return dialog_dict
 
