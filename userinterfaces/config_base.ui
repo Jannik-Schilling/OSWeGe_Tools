@@ -45,7 +45,7 @@
     <enum>QTabWidget::Rounded</enum>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="tab_1">
     <attribute name="title">
@@ -177,17 +177,23 @@
        <x>110</x>
        <y>40</y>
        <width>111</width>
-       <height>21</height>
+       <height>32</height>
       </rect>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
      </property>
      <property name="editTriggers">
       <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
      </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
+     </property>
+     <property name="flow">
+      <enum>QListView::LeftToRight</enum>
      </property>
     </widget>
     <widget class="QLabel" name="label_7">
@@ -222,17 +228,20 @@
        <x>110</x>
        <y>80</y>
        <width>111</width>
-       <height>21</height>
+       <height>32</height>
       </rect>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
      </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
      </property>
      <property name="flow">
-      <enum>QListView::TopToBottom</enum>
+      <enum>QListView::LeftToRight</enum>
      </property>
      <property name="layoutMode">
       <enum>QListView::SinglePass</enum>
@@ -247,17 +256,20 @@
        <x>110</x>
        <y>120</y>
        <width>111</width>
-       <height>21</height>
+       <height>32</height>
       </rect>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
      </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
      </property>
      <property name="flow">
-      <enum>QListView::TopToBottom</enum>
+      <enum>QListView::LeftToRight</enum>
      </property>
      <property name="layoutMode">
       <enum>QListView::SinglePass</enum>
@@ -272,17 +284,20 @@
        <x>110</x>
        <y>160</y>
        <width>111</width>
-       <height>21</height>
+       <height>32</height>
       </rect>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
      </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
      </property>
      <property name="flow">
-      <enum>QListView::TopToBottom</enum>
+      <enum>QListView::LeftToRight</enum>
      </property>
      <property name="layoutMode">
       <enum>QListView::SinglePass</enum>
@@ -297,17 +312,20 @@
        <x>110</x>
        <y>200</y>
        <width>111</width>
-       <height>21</height>
+       <height>32</height>
       </rect>
      </property>
      <property name="layoutDirection">
       <enum>Qt::LeftToRight</enum>
      </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
      <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
+      <enum>QAbstractItemView::SelectItems</enum>
      </property>
      <property name="flow">
-      <enum>QListView::TopToBottom</enum>
+      <enum>QListView::LeftToRight</enum>
      </property>
      <property name="layoutMode">
       <enum>QListView::SinglePass</enum>
@@ -421,7 +439,7 @@
       <rect>
        <x>10</x>
        <y>230</y>
-       <width>391</width>
+       <width>271</width>
        <height>16</height>
       </rect>
      </property>
@@ -429,7 +447,7 @@
       <enum>QFrame::Plain</enum>
      </property>
      <property name="lineWidth">
-      <number>4</number>
+      <number>2</number>
      </property>
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -446,31 +464,6 @@
      </property>
      <property name="text">
       <string>Minimallänge Gewässer</string>
-     </property>
-    </widget>
-    <widget class="QListWidget" name="WidgetLaengeGew">
-     <property name="geometry">
-      <rect>
-       <x>140</x>
-       <y>260</y>
-       <width>121</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::TopToBottom</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::ListMode</enum>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButtonRl">
@@ -536,6 +529,16 @@
      </property>
      <property name="text">
       <string>ändern</string>
+     </property>
+    </widget>
+    <widget class="QDoubleSpinBox" name="WidgetLaengeGew">
+     <property name="geometry">
+      <rect>
+       <x>160</x>
+       <y>260</y>
+       <width>62</width>
+       <height>22</height>
+      </rect>
      </property>
     </widget>
    </widget>
