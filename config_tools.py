@@ -163,6 +163,9 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
                 file_config_for_reset
             )
         )
+        self.comboBoxPrimrschl.currentTextChanged.connect(
+            lambda: self.handle_field_in_all_lists(self.comboBoxPrimrschl.currentText())
+        )
 
     def set_up_attribute_params(self, json_file):
         '''
@@ -194,9 +197,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             if not loadad_primary_key in self.config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
                 widget_obj.addItem(loadad_primary_key)
         self.WidgetLaengeGew.setValue(self.config_dict['check_layer_defaults']['minimallaenge_gew'])
-        self.comboBoxPrimrschl.currentTextChanged.connect(
-            lambda: self.handle_field_in_all_lists(self.comboBoxPrimrschl.currentText())
-        )
+
 
     def handle_field_in_all_lists(self, entry_i):
         '''
