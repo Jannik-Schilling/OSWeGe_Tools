@@ -1,0 +1,47 @@
+{
+    "last_change": "07.05.2025",
+    "layer_names": {
+        "gewaesser": "",
+        "rohleitungen": "",
+        "durchlaesse": "",
+        "schaechte": "",
+        "wehre": ""
+    },
+    "check_layer_defaults": {
+        "pflichtfelder": {
+            "gewaesser": [
+                "ba_cd",
+                "gu_cd"
+            ],
+            "rohrleitungen": [
+                "obj_nr_gu",
+                "gu_cd",
+                "profil",
+                "ba_cd"
+            ],
+            "durchlaesse": [
+                "obj_nr_gu",
+                "gu_cd",
+                "profil",
+                "ba_cd"
+            ],
+            "schaechte": [
+                "obj_nr_gu",
+                "name",
+                "gu_cd",
+                "scha",
+                "ba_cd"
+            ],
+            "wehre": [
+                "obj_nr_gu",
+                "name",
+                "gu_cd",
+                "wehr",
+                "ba_cd"
+            ]
+        },
+        "primaerschluessel_gew": "ba_cd",
+        "minimallaenge_gew": 0.5,
+        "findGew_tolerance_dist": 0.2
+    }
+}

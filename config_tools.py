@@ -180,7 +180,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         if not loadad_primary_key in self.config_dict['check_layer_defaults']['pflichtfelder']['gewaesser']:
             self.comboBoxPrimrschl.addItem(loadad_primary_key)
         self.comboBoxPrimrschl.setCurrentText(loadad_primary_key)
-        
+
         self.dict_list_widgets = {
             'gewaesser': self.WidgetPflichtfeldGew,
             'rohrleitungen': self.WidgetPflichtfeldRl,
@@ -194,6 +194,24 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             if not loadad_primary_key in self.config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
                 widget_obj.addItem(loadad_primary_key)
         self.WidgetLaengeGew.setValue(self.config_dict['check_layer_defaults']['minimallaenge_gew'])
+        self.comboBoxPrimrschl.currentTextChanged.connect(
+            lambda: self.handle_field_in_all_lists(self.comboBoxPrimrschl.currentText())
+        )
+
+    def handle_field_in_all_lists(self, entry_i):
+        '''
+        Checks if the entry is in all list_items and adds it if not
+        :param entry_i'''
+        for layer_key, listwidget_obj in self.dict_list_widgets.items():
+            self.add_required_field(entry_i, listwidget_obj)
+
+    def add_required_field(self, entry_i, listwidget_obj):
+        '''
+        adds an entry (str) to the listwidget_obj if it is not already in the list of entries
+        '''
+        list_of_fields = [listwidget_obj.item(i).text() for i in range(listwidget_obj.count())]
+        if not entry_i in list_of_fields:
+            listwidget_obj.addItem(entry_i)
 
     def save_config_test(self):
         '''
@@ -230,6 +248,9 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         widget_obj = self.dict_list_widgets[layer_key]
         widget_obj.clear()
         widget_obj.addItems(new_entries)
+        if layer_key == 'gewaesser':
+            self.comboBoxPrimrschl.clear()
+            self.comboBoxPrimrschl.addItems(new_entries)
         self.close_edit_dialog()
 
     def get_current_dialog_config(self):

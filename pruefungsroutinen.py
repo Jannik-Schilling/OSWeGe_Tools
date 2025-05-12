@@ -2,8 +2,6 @@ from qgis.core import (
     QgsGeometry
 )
 
-import pandas as pd
-
 from .hilfsfunktionen import (
     get_line_candidates_ids,
     get_line_to_check

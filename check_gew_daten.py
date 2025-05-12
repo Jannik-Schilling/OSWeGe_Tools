@@ -45,26 +45,27 @@ from qgis.core import (
     QgsProcessingParameterVectorLayer,
 )
 
-from .defaults import (
-    primaerschluessel_gew,
-    output_layer_prefixes,
-    pflichtfelder
-)
-
 from .attributpruefung import (
     handle_test_missing_fields,
     handle_tests_attributes
-)
-
-from .geometriepruefungen import (
-    handle_tests_single_geometries,
-    handle_tests_geoms_comparisons
 )
 
 from .check_gew_report import (
     create_layers_from_report_dict,
     save_layer_to_file,
     layerReport
+)
+
+from .config_tools import get_config_from_json
+
+from .defaults import (
+    file_config_user,
+    output_layer_prefixes
+)
+
+from .geometriepruefungen import (
+    handle_tests_single_geometries,
+    handle_tests_geoms_comparisons
 )
 
 from .hilfsfunktionen import (
@@ -208,11 +209,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 'Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!'
             )
 
+        # User config laden
+        user_config_dict = get_config_from_json(file_config_user)
+
         # Dictionary fuer immer wiederkehrende Parameter
         params_processing = {
             'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
-            'ereign_gew_id_field': primaerschluessel_gew,  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
+            'ereign_gew_id_field': user_config_dict['check_layer_defaults']['primaerschluessel_gew'],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
             'gew_primary_key_missing': False,
             'field_merged_id': 'merged_id',  # Feldname fuer neue ID, wenn rl und dl vorhanden
             'emptystrdef': [NULL, ''],  # moegliche "Leer"-Definitionen für Zeichenketten
@@ -264,7 +268,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 layer_key,
                 layer,
                 report_object,
-                pflichtfelder,
+                user_config_dict['check_layer_defaults']['pflichtfelder'],
                 params_processing
             )
             timeLogger.log_time(layer_key+'_Fields')

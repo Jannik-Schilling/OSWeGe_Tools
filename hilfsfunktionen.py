@@ -220,6 +220,19 @@ def linie_verlaengern(
     layer_fg_1ordnung,
     spatial_index_fg_1ordnung,
 ):
+    """
+    Erstellt eine Linie der Laenge n*dist_verl von vtx_muendung aus mit 
+    dx = delta_x_laenge1 und dy = delta_y_laenge1. Falls die Linie ein Gewaesser 
+    erster Ordnung schneidet, wird ein QgsFeature erstellt.
+    :param int n
+    :param QgsGeometry vtx_muendung
+    :param float dist_verl
+    :param float delta_x_laenge1
+    :param float delta_y_laenge1
+    :param QgsVectorLayer layer_fg_1ordnung
+    :param QgsSpatialIndex spatial_index_fg_1ordnung
+    :return: tuple (True, QgsFeature) oder (False, )
+    """
     x_muendung = vtx_muendung.asPoint().x()
     y_muendung = vtx_muendung.asPoint().y()
     x_neu = x_muendung - (n*dist_verl*delta_x_laenge1)
@@ -320,7 +333,7 @@ def setup_localparams_for_tests_with_comparisons(
         if 'layer_rldl' in params_processing.keys():  # beide vorhanden
             temp_key = 'layer_rldl'
             temp_layer = params_processing[temp_key]['layer']
-            temp_layer_steps = 100/temp_layer.featureCount()
+            temp_layer_steps = 100/temp_layer.featureCount() if temp_layer.featureCount() != 0 else 0
             use_field_merged_id = True
             if params_processing['layer_rldl']['runs']['check_duplicates_crossings']:
                 # falls der Test schon einmal mit rldl durchlaufen wurde

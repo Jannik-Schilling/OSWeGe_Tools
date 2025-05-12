@@ -22,12 +22,13 @@ from qgis.core import (
     QgsSpatialIndex
 )
 
-
-from qgis.PyQt.QtCore import QVariant
+# Exception for deprecated QVariant if QGIS version is older than 3.38
 try:
     from qgis.PyQt.QtCore import QMetaType
+    qgis_version_newer_3_38 = True
 except Exception:
-    pass
+    from qgis.PyQt.QtCore import QVariant
+    qgis_version_newer_3_38 = False
 
 
 from .hilfsfunktionen import (
@@ -158,9 +159,9 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
 
         # Ausgabe
         out_fields = QgsFields()
-        try:
+        if qgis_version_newer_3_38:
             out_fields.append(QgsField('ba_cd', QMetaType.QString))
-        except Exception:  # for QGIS vor Version 3.38
+        else:  # for QGIS vor Version 3.38
             out_fields.append(QgsField('ba_cd', QVariant.String))
         (sink, dest_id) = self.parameterAsSink(
             parameters,
