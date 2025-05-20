@@ -78,7 +78,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     Prueft Gewaesserdaten
     """
     LAYER_GEWAESSER = 'LAYER_GEWAESSER'
-    LAYER_ROHLEITUNGEN = 'LAYER_ROHLEITUNGEN'
+    LAYER_ROHRLEITUNGEN = 'LAYER_ROHRLEITUNGEN'
     LAYER_DURCHLAESSE = 'LAYER_DURCHLAESSE'
     LAYER_WEHRE = 'LAYER_WEHRE'
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
@@ -104,7 +104,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.LAYER_ROHLEITUNGEN,
+                self.LAYER_ROHRLEITUNGEN,
                 self.tr('Rohrleitungs-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine],
                 optional = True
@@ -165,7 +165,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
-        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHLEITUNGEN, context)
+        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHRLEITUNGEN, context)
         layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.LAYER_DURCHLAESSE, context)
         layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)

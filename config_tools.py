@@ -264,7 +264,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         for layer_key, layer_i in zip(
             [
                 'gewaesser',
-                'rohleitungen',
+                'rohrleitungen',
                 'durchlaesse',
                 'schaechte',
                 'wehre'
