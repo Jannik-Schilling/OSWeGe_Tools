@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>553</width>
-    <height>401</height>
+    <width>551</width>
+    <height>376</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,10 +17,16 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>360</y>
+     <y>340</y>
      <width>521</width>
      <height>31</height>
     </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
@@ -35,8 +41,14 @@
      <x>20</x>
      <y>20</y>
      <width>521</width>
-     <height>331</height>
+     <height>321</height>
     </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
    </property>
    <property name="tabPosition">
     <enum>QTabWidget::North</enum>
@@ -49,13 +61,13 @@
    </property>
    <widget class="QWidget" name="tab_1">
     <attribute name="title">
-     <string>Layerauswahl</string>
+     <string>Layerauswahl und fg_ae-Parameter</string>
     </attribute>
     <widget class="QLabel" name="label_2">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>15</y>
+       <y>55</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -68,7 +80,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>30</y>
+       <y>70</y>
        <width>301</width>
        <height>21</height>
       </rect>
@@ -78,7 +90,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>65</y>
+       <y>105</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -91,7 +103,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>80</y>
+       <y>120</y>
        <width>301</width>
        <height>21</height>
       </rect>
@@ -101,7 +113,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>130</y>
+       <y>170</y>
        <width>301</width>
        <height>21</height>
       </rect>
@@ -111,7 +123,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>180</y>
+       <y>220</y>
        <width>301</width>
        <height>21</height>
       </rect>
@@ -121,7 +133,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>230</y>
+       <y>270</y>
        <width>301</width>
        <height>21</height>
       </rect>
@@ -131,7 +143,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>115</y>
+       <y>155</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -144,7 +156,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>165</y>
+       <y>205</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -157,7 +169,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>215</y>
+       <y>255</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -166,41 +178,42 @@
       <string>Wehre-Layer</string>
      </property>
     </widget>
+    <widget class="QTextBrowser" name="textBrowser_2">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>301</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <property name="html">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Diese Layerauswahl kann automatisch bei der Datenprüfung als Voreinstellung berücksichtigt werden&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tab_2">
     <attribute name="title">
      <string>Einstellungen für Datenprüfung</string>
     </attribute>
-    <widget class="QListWidget" name="WidgetPflichtfeldGew">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>40</y>
-       <width>111</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::LeftToRight</enum>
-     </property>
-    </widget>
     <widget class="QLabel" name="label_7">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>40</y>
+       <y>50</y>
        <width>91</width>
        <height>21</height>
       </rect>
@@ -222,123 +235,11 @@
       <string>Pflichtfelder</string>
      </property>
     </widget>
-    <widget class="QListWidget" name="WidgetPflichtfeldRl">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>80</y>
-       <width>111</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::LeftToRight</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::ListMode</enum>
-     </property>
-    </widget>
-    <widget class="QListWidget" name="WidgetPflichtfeldDl">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>120</y>
-       <width>111</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::LeftToRight</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::ListMode</enum>
-     </property>
-    </widget>
-    <widget class="QListWidget" name="WidgetPflichtfeldSchaechte">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>160</y>
-       <width>111</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::LeftToRight</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::ListMode</enum>
-     </property>
-    </widget>
-    <widget class="QListWidget" name="WidgetPflichtfeldWehre">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>200</y>
-       <width>111</width>
-       <height>32</height>
-      </rect>
-     </property>
-     <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectItems</enum>
-     </property>
-     <property name="flow">
-      <enum>QListView::LeftToRight</enum>
-     </property>
-     <property name="layoutMode">
-      <enum>QListView::SinglePass</enum>
-     </property>
-     <property name="viewMode">
-      <enum>QListView::ListMode</enum>
-     </property>
-    </widget>
     <widget class="QLabel" name="label_10">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>80</y>
+       <y>100</y>
        <width>91</width>
        <height>21</height>
       </rect>
@@ -351,7 +252,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>120</y>
+       <y>150</y>
        <width>91</width>
        <height>21</height>
       </rect>
@@ -364,7 +265,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>160</y>
+       <y>200</y>
        <width>91</width>
        <height>21</height>
       </rect>
@@ -377,7 +278,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>200</y>
+       <y>250</y>
        <width>91</width>
        <height>21</height>
       </rect>
@@ -416,7 +317,7 @@
      <property name="geometry">
       <rect>
        <x>420</x>
-       <y>270</y>
+       <y>260</y>
        <width>91</width>
        <height>31</height>
       </rect>
@@ -434,30 +335,11 @@
       <set>QDialogButtonBox::RestoreDefaults</set>
      </property>
     </widget>
-    <widget class="Line" name="line_5">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>230</y>
-       <width>271</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
-     </property>
-     <property name="lineWidth">
-      <number>2</number>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
     <widget class="QLabel" name="label_15">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>260</y>
+       <x>330</x>
+       <y>90</y>
        <width>121</width>
        <height>21</height>
       </rect>
@@ -470,7 +352,7 @@
      <property name="geometry">
       <rect>
        <x>240</x>
-       <y>80</y>
+       <y>100</y>
        <width>41</width>
        <height>20</height>
       </rect>
@@ -483,7 +365,7 @@
      <property name="geometry">
       <rect>
        <x>240</x>
-       <y>120</y>
+       <y>150</y>
        <width>41</width>
        <height>20</height>
       </rect>
@@ -496,7 +378,7 @@
      <property name="geometry">
       <rect>
        <x>240</x>
-       <y>200</y>
+       <y>250</y>
        <width>41</width>
        <height>20</height>
       </rect>
@@ -509,7 +391,7 @@
      <property name="geometry">
       <rect>
        <x>240</x>
-       <y>160</y>
+       <y>200</y>
        <width>41</width>
        <height>20</height>
       </rect>
@@ -522,7 +404,7 @@
      <property name="geometry">
       <rect>
        <x>240</x>
-       <y>40</y>
+       <y>50</y>
        <width>41</width>
        <height>20</height>
       </rect>
@@ -534,11 +416,144 @@
     <widget class="QDoubleSpinBox" name="WidgetLaengeGew">
      <property name="geometry">
       <rect>
-       <x>160</x>
-       <y>260</y>
+       <x>330</x>
+       <y>110</y>
        <width>62</width>
        <height>22</height>
       </rect>
+     </property>
+    </widget>
+    <widget class="Line" name="line">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>30</y>
+       <width>16</width>
+       <height>251</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="WidgetPflichtfeldGew">
+     <property name="geometry">
+      <rect>
+       <x>110</x>
+       <y>40</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Box</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="WidgetPflichtfeldRl">
+     <property name="geometry">
+      <rect>
+       <x>110</x>
+       <y>90</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Box</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="WidgetPflichtfeldDl">
+     <property name="geometry">
+      <rect>
+       <x>110</x>
+       <y>140</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Box</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="WidgetPflichtfeldSchaechte">
+     <property name="geometry">
+      <rect>
+       <x>110</x>
+       <y>190</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Box</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="WidgetPflichtfeldWehre">
+     <property name="geometry">
+      <rect>
+       <x>110</x>
+       <y>240</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Box</enum>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="textBrowser">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>170</y>
+       <width>141</width>
+       <height>56</height>
+      </rect>
+     </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <property name="html">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Suchraum für das Verarbeitungswerkzeug &amp;quot;fg_ae_hinzufügen&amp;quot;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
+    <widget class="QSpinBox" name="fg_ae_spinbox">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>230</y>
+       <width>62</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>500</number>
+     </property>
+    </widget>
+    <widget class="Line" name="line_2">
+     <property name="geometry">
+      <rect>
+       <x>310</x>
+       <y>140</y>
+       <width>191</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
     </widget>
    </widget>

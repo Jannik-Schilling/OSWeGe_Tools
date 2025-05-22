@@ -1,12 +1,13 @@
 {
 	"last_change": "07.05.2025",
-	"layer_names":{
+	"layer_names": {
 		"gewaesser": "",
 		"rohrleitungen": "",
 		"durchlaesse": "",
 		"schaechte": "",
 		"wehre": ""
 	},
+	"max_suchraum_fg_ae_in_m": 40,
 	"check_layer_defaults": {
 		"pflichtfelder": {
 			"gewaesser": ["ba_cd", "gu_cd"],

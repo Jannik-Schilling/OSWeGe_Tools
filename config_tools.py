@@ -5,6 +5,9 @@ from qgis.PyQt import (
     QtWidgets,
     uic,
 )
+
+from qgis.core import Qgis
+
 from qgis.PyQt.QtWidgets import QDialog
 
 from .defaults import (
@@ -145,8 +148,32 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.edit_dialog_is_open = False
         self.setWindowTitle('OSWeGe Tools - Konfiguration')
         
-        # set the values; depends on self.config_dict
-        self.set_up_attribute_params(json_file)
+        # Layerauswahl
+        config_dict = get_config_from_json(json_file)
+        config_dict_layers = config_dict['layer_names']
+        dict_layer_widgets = {
+            'gewaesser': self.LayerComboBoxGewaesser,
+            'rohrleitungen': self.LayerComboBoxRL,
+            'durchlaesse': self.LayerComboBoxDL,
+            'schaechte':self.LayerComboBoxSchaechte,
+            'wehre': self.LayerComboBoxWehre
+        }
+        for layer_key, widget_obj in dict_layer_widgets.items():
+            if layer_key in ['gewaesser', 'rohrleitungen', 'durchlaesse']:
+                widget_obj.setFilters(Qgis.LayerFilter.LineLayer)
+            else:
+                widget_obj.setFilters(Qgis.LayerFilter.PointLayer)
+            widget_obj.setAdditionalItems([''])
+            all_layer_items = [widget_obj.itemText(i) for i in range(widget_obj.count())]
+            if config_dict_layers[layer_key] in all_layer_items:
+                widget_obj.setCurrentText(config_dict_layers[layer_key])
+            else:
+                widget_obj.setCurrentText('')
+
+
+
+        # set the values; depends on json_file
+        self.set_up_pruefroutinen_params(json_file)
 
         # connect the signals
         self.pushButtonGew.clicked.connect(lambda: self.open_edit_dialog('gewaesser'))
@@ -155,11 +182,11 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.pushButtonSchaechte.clicked.connect(lambda: self.open_edit_dialog('schaechte'))
         self.pushButtonWehre.clicked.connect(lambda: self.open_edit_dialog('wehre'))
         self.dialogSaveCancel.accepted.connect(self.save_config)
-        #self.dialogSaveCancel.accepted.connect(self.save_config_test)
+        #self.dialogSaveCancel.accepted.connect(self.save_config_test)  # nur zu testzwecken
         self.dialogSaveCancel.accepted.connect(self.close_edit_dialog)
         self.dialogSaveCancel.rejected.connect(self.close_edit_dialog)
         self.restoreButton.clicked.connect(
-            lambda: self.set_up_attribute_params(
+            lambda: self.set_up_pruefroutinen_params(
                 file_config_for_reset
             )
         )
@@ -167,23 +194,27 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             lambda: self.handle_field_in_all_lists(self.comboBoxPrimrschl.currentText())
         )
 
-    def set_up_attribute_params(self, json_file):
+    def set_up_pruefroutinen_params(self, json_file):
         '''
         sets up params from self.config_dict
         :param json_file: path to the json file
         '''
-        self.config_dict = get_config_from_json(json_file)
+        # Die Config-Datei lesen
+        config_dict = get_config_from_json(json_file)
 
-        # QListWidget
+        # fg_ae-Parameter
+        self.fg_ae_spinbox.setValue(config_dict['max_suchraum_fg_ae_in_m'])
+
+        # Combobox fuer den Primaerschluesseln
         self.comboBoxPrimrschl.clear()
-        loadad_primary_key = self.config_dict['check_layer_defaults']['primaerschluessel_gew']
-        self.comboBoxPrimrschl.addItems(self.config_dict['check_layer_defaults']['pflichtfelder']['gewaesser'])
-        # check if the primary key is already in the list
-        # if not, add it to the list
-        if not loadad_primary_key in self.config_dict['check_layer_defaults']['pflichtfelder']['gewaesser']:
+        loadad_primary_key = config_dict['check_layer_defaults']['primaerschluessel_gew']
+        self.comboBoxPrimrschl.addItems(config_dict['check_layer_defaults']['pflichtfelder']['gewaesser'])
+        # check if the primary key is already in the list if not, add it to the list
+        if not loadad_primary_key in config_dict['check_layer_defaults']['pflichtfelder']['gewaesser']:
             self.comboBoxPrimrschl.addItem(loadad_primary_key)
         self.comboBoxPrimrschl.setCurrentText(loadad_primary_key)
 
+        # Pflichtfelder
         self.dict_list_widgets = {
             'gewaesser': self.WidgetPflichtfeldGew,
             'rohrleitungen': self.WidgetPflichtfeldRl,
@@ -193,26 +224,34 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         }
         for layer_key, widget_obj in self.dict_list_widgets.items():
             widget_obj.clear()
-            widget_obj.addItems(self.config_dict['check_layer_defaults']['pflichtfelder'][layer_key])
-            if not loadad_primary_key in self.config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
-                widget_obj.addItem(loadad_primary_key)
-        self.WidgetLaengeGew.setValue(self.config_dict['check_layer_defaults']['minimallaenge_gew'])
+            text_list = config_dict['check_layer_defaults']['pflichtfelder'][layer_key]
+            if not loadad_primary_key in config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
+                text_list.append(loadad_primary_key)
+            widget_obj.setText('\n'.join(text_list))
+
+        # Minimallaenge Gewaesser
+        self.WidgetLaengeGew.setValue(config_dict['check_layer_defaults']['minimallaenge_gew'])
 
 
     def handle_field_in_all_lists(self, entry_i):
         '''
         Checks if the entry is in all list_items and adds it if not
-        :param entry_i'''
-        for layer_key, listwidget_obj in self.dict_list_widgets.items():
-            self.add_required_field(entry_i, listwidget_obj)
+        :param any entry_i
+        '''
+        if entry_i:
+            for layer_key, listwidget_obj in self.dict_list_widgets.items():
+                self.add_required_field(entry_i, listwidget_obj)
 
     def add_required_field(self, entry_i, listwidget_obj):
         '''
         adds an entry (str) to the listwidget_obj if it is not already in the list of entries
         '''
-        list_of_fields = [listwidget_obj.item(i).text() for i in range(listwidget_obj.count())]
+        list_of_fields = listwidget_obj.toPlainText().split('\n')
         if not entry_i in list_of_fields:
-            listwidget_obj.addItem(entry_i)
+            list_of_fields.append(entry_i)
+            listwidget_obj.clear()
+            new_text = '\n'.join(list_of_fields)
+            listwidget_obj.setText(new_text)
 
     def save_config_test(self):
         '''
@@ -220,11 +259,11 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         '''
         current_config = self.get_current_dialog_config()
         print(current_config)
-        
+
     def open_edit_dialog(self, layer_key):
         edit_dialog_title = f'Pflichtfelder für {layer_key.capitalize()}-Layer ändern'
         current_list_widget = self.dict_list_widgets[layer_key]
-        current_value_list = [current_list_widget.item(i).text() for i in range(current_list_widget.count())]
+        current_value_list = current_list_widget.toPlainText().split('\n')
         current_primary_key = self.comboBoxPrimrschl.currentText()
         self.editDialog = oswegeToolsConfigEntryEdit(
             edit_dialog_title,
@@ -248,7 +287,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         new_entries = self.editDialog.result()
         widget_obj = self.dict_list_widgets[layer_key]
         widget_obj.clear()
-        widget_obj.addItems(new_entries)
+        widget_obj.setText('\n'.join(new_entries))
         if layer_key == 'gewaesser':
             self.comboBoxPrimrschl.clear()
             self.comboBoxPrimrschl.addItems(new_entries)
@@ -278,16 +317,19 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             ]
         ):
             layer_names[layer_key] = layer_i.name() if layer_i else ''
-        dialog_PflichtfeldGew =  [self.WidgetPflichtfeldGew.item(i).text() for i in range(self.WidgetPflichtfeldGew.count())]
-        dialog_PflichtfeldRl =  [self.WidgetPflichtfeldRl.item(i).text() for i in range(self.WidgetPflichtfeldRl.count())]
-        dialog_flichtfeldDl =  [self.WidgetPflichtfeldDl.item(i).text() for i in range(self.WidgetPflichtfeldDl.count())]
-        dialog_PflichtfeldSchaechte =  [self.WidgetPflichtfeldSchaechte.item(i).text() for i in range(self.WidgetPflichtfeldSchaechte.count())]
-        dialog_PflichtfeldWehre =  [self.WidgetPflichtfeldWehre.item(i).text() for i in range(self.WidgetPflichtfeldWehre.count())]
+        dialog_PflichtfeldGew = self.WidgetPflichtfeldGew.toPlainText().split('\n')
+        dialog_PflichtfeldRl = self.WidgetPflichtfeldRl.toPlainText().split('\n')
+        dialog_flichtfeldDl = self.WidgetPflichtfeldDl.toPlainText().split('\n')
+        dialog_PflichtfeldSchaechte = self.WidgetPflichtfeldSchaechte.toPlainText().split('\n')
+        dialog_PflichtfeldWehre = self.WidgetPflichtfeldWehre.toPlainText().split('\n')
+
         dialog_primaerschluessel = self.comboBoxPrimrschl.currentText()
         dialog_minimallaenge = self.WidgetLaengeGew.value()
+        dialog_fg_ae_laenge = int(self.fg_ae_spinbox.value())
         dialog_dict = {
             'last_change': last_change,
             'layer_names': layer_names,
+            'max_suchraum_fg_ae_in_m': dialog_fg_ae_laenge,
             'check_layer_defaults': {
                 'pflichtfelder': {
                     'gewaesser': dialog_PflichtfeldGew,

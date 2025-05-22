@@ -1,12 +1,13 @@
 {
     "last_change": "07.05.2025",
     "layer_names": {
-        "gewaesser": "",
-        "rohrleitungen": "",
-        "durchlaesse": "",
-        "schaechte": "",
-        "wehre": ""
+        "gewaesser": "Line_Empty_Layer_5650",
+        "rohrleitungen": "Line_Empty_Layer_5650",
+        "durchlaesse": "Line_Empty_Layer_5650",
+        "schaechte": "Line_Empty_Layer_5650",
+        "wehre": "Line_Empty_Layer_5650"
     },
+    "max_suchraum_fg_ae_in_m": 40,
     "check_layer_defaults": {
         "pflichtfelder": {
             "gewaesser": [

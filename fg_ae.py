@@ -35,7 +35,9 @@ from .hilfsfunktionen import (
     linie_verlaengern
 )
 
+from .config_tools import get_config_from_json
 from .pruefungsroutinen import muendet_nicht_in_fg_2ordnung
+from .defaults import file_config_user
 
 class AddFgAeAlagorithm(QgsProcessingAlgorithm):
     FG = "FG"
@@ -101,9 +103,11 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
         
         # Festlegung fuer die Schrittweite (in m)
-        dist_verl = 4
-        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl -> max 40m
-        n_max = 10
+        dist_verl = 1
+        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl
+        config_dict = get_config_from_json(file_config_user)
+        dist_max = int(config_dict['max_suchraum_fg_ae_in_m'])
+        n_max = round(dist_max / dist_verl)
         
         # Spatial indices fuer die beiden Layer:
         spatial_index_fg =  QgsSpatialIndex(layer_fg.getFeatures())
@@ -121,6 +125,9 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
 
         # Linien verlaengern
         fg_ae_featurelist = []
+        feedback.setProgressText(
+            f'Erstelle an {len(fg_einmuendend)} Gewässermündungen fg_ae-Abschnitte, Suchraum: {dist_max}m'
+        )
         for current_ft_id in fg_einmuendend:
             current_ft_fg = layer_fg.getFeature(current_ft_id)
             
