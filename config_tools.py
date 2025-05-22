@@ -60,7 +60,7 @@ def open_message_box(message):
     )
 
 
-def config_layer_if_in_project(file_config_user):
+def config_layer_if_in_project(file_config_user, QgsInstance = None):
     """
     gibt ein Dictionary mit layernamen aus der Konfig zurück, wenn diese vorhanden sind
     :param str file_config_user
@@ -74,9 +74,11 @@ def config_layer_if_in_project(file_config_user):
         'schaechte':None,
         'wehre': None
     }
+    
+    filtered_layer_list = [layer for layer in QgsProject.instance().mapLayers().values() if layer.type() == 0]  # nur Vektorlayer
+    #print(filtered_layer_list)
     for layer_key in dict_layer_defaults.keys():
         default_layer_name = user_config_dict['layer_names'][layer_key]
-        filtered_layer_list = [layer for layer in QgsProject.instance().mapLayers().values() if layer.type() == 0]  # nur Vektorlayer
         if layer_key in ['gewaesser', 'rohrleitungen', 'durchlaesse']:
             filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 1]  # nur Linienlayer
         else:
@@ -176,6 +178,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.json_file = json_file
         self.edit_dialog_is_open = False
         self.setWindowTitle('OSWeGe Tools - Konfiguration')
+        print('start_conf')
         
         # Layerauswahl
         config_dict = get_config_from_json(json_file)

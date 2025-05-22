@@ -244,10 +244,8 @@ class oswege_tools_buttons:
 
     def run_stationierung(self):
         """Run method that performs all the real work"""
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
         if self.first_start_stat == True:
-            self.first_start_stat = False
+            self.first_start_stat = True
             self.canvas = iface.mapCanvas()
             self.dlg_stat = stationierungDialog(
                 canvas=self.canvas
