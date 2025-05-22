@@ -10,6 +10,7 @@
 """
 
 from qgis.core import (
+    Qgis,
     QgsGeometry,
     QgsFeatureSink,
     QgsFields,
@@ -23,12 +24,13 @@ from qgis.core import (
 )
 
 # Exception for deprecated QVariant if QGIS version is older than 3.38
-try:
-    from qgis.PyQt.QtCore import QMetaType
+
+if (int(Qgis.version().split('.')[0]) == 3 and int(Qgis.version().split('.')[1]) > 36) or (int(Qgis.version().split('.')[0]) > 3):
     qgis_version_newer_3_38 = True
-except Exception:
-    from qgis.PyQt.QtCore import QVariant
+    from qgis.PyQt.QtCore import QMetaType
+else:
     qgis_version_newer_3_38 = False
+    from qgis.PyQt.QtCore import QVariant
 
 
 from .hilfsfunktionen import (

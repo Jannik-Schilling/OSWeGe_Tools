@@ -43,6 +43,7 @@ from qgis.core import (
     QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
+    QgsProject
 )
 
 from .attributpruefung import (
@@ -85,7 +86,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     REPORT = 'REPORT'
     REPORT_OUT = 'REPORT_OUT'
     
-    if (int(Qgis.version().split('.')[1]) >= 36) or (int(Qgis.version().split('.')[0]) > 3):
+    if (int(Qgis.version().split('.')[0]) == 3 and int(Qgis.version().split('.')[1]) >= 36) or (int(Qgis.version().split('.')[0]) > 3):
         newer_qgis_version = True
     else:
         newer_qgis_version = False
@@ -94,11 +95,31 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         """
         Definition von Input und Output des Werkzeugs
         """
+        # User config laden
+        user_config_dict = get_config_from_json(file_config_user)
+        dict_layer_defaults = {
+            'gewaesser': None,
+            'rohrleitungen': None,
+            'durchlaesse': None,
+            'schaechte':None,
+            'wehre': None
+        }
+        for layer_key in dict_layer_defaults.keys():
+            default_layer_name = user_config_dict['layer_names'][layer_key]
+            filtered_layer_list = [layer for layer in QgsProject.instance().mapLayers().values() if layer.type() == 0]  # nur Vektorlayer
+            if layer_key in ['gewaesser', 'rohrleitungen', 'durchlaesse']:
+                filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 1]  # nur Linienlayer
+            else:
+                filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 0]  # nur Punktlayer
+            if default_layer_name in filtered_layer_name_list:
+                dict_layer_defaults[layer_key] = default_layer_name
+
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.LAYER_GEWAESSER,
                 self.tr('Gewässer-Layer'),
-                [QgsProcessing.SourceType.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine],
+                defaultValue=dict_layer_defaults['gewaesser']
             )
         )
 
@@ -107,7 +128,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_ROHRLEITUNGEN,
                 self.tr('Rohrleitungs-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['rohrleitungen']
             )
         )
 
@@ -116,7 +138,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_DURCHLAESSE,
                 self.tr('Durchlässe-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['durchlaesse']
             )
         )
 
@@ -125,7 +148,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_WEHRE,
                 self.tr('Wehre-Layer'),
                 [QgsProcessing.SourceType.TypeVectorPoint],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['wehre']
             )
         )
 
@@ -134,7 +158,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_SCHAECHTE,
                 self.tr('Schächte-Layer'),
                 [QgsProcessing.SourceType.TypeVectorPoint],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['schaechte']
             )
         )
 
@@ -209,10 +234,9 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 'Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!'
             )
 
+        # Dictionary fuer immer wiederkehrende Parameter
         # User config laden
         user_config_dict = get_config_from_json(file_config_user)
-
-        # Dictionary fuer immer wiederkehrende Parameter
         params_processing = {
             'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
