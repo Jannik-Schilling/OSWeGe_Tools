@@ -37,7 +37,10 @@ from .hilfsfunktionen import (
     linie_verlaengern
 )
 
-from .config_tools import get_config_from_json
+from .config_tools import (
+    get_config_from_json,
+    config_layer_if_in_project
+)
 from .pruefungsroutinen import muendet_nicht_in_fg_2ordnung
 from .defaults import file_config_user
 
@@ -70,11 +73,15 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         )
 
     def initAlgorithm(self, config=None):
+        # User config laden
+        dict_layer_defaults = config_layer_if_in_project(file_config_user)
+
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.FG,
                 'Gewässer-Layer: fg',
-                [QgsProcessing.SourceType.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine],
+                defaultValue=dict_layer_defaults['gewaesser']
             )
         )
         self.addParameter(
@@ -107,8 +114,8 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         # Festlegung fuer die Schrittweite (in m)
         dist_verl = 1
         # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl
-        config_dict = get_config_from_json(file_config_user)
-        dist_max = int(config_dict['max_suchraum_fg_ae_in_m'])
+        user_config_dict = get_config_from_json(file_config_user)
+        dist_max = int(user_config_dict['max_suchraum_fg_ae_in_m'])
         n_max = round(dist_max / dist_verl)
         
         # Spatial indices fuer die beiden Layer:

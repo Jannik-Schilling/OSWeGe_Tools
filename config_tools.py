@@ -6,7 +6,10 @@ from qgis.PyQt import (
     uic,
 )
 
-from qgis.core import Qgis
+from qgis.core import (
+    Qgis,
+    QgsProject
+)
 
 from qgis.PyQt.QtWidgets import QDialog
 
@@ -57,8 +60,34 @@ def open_message_box(message):
     )
 
 
+def config_layer_if_in_project(file_config_user):
+    """
+    gibt ein Dictionary mit layernamen aus der Konfig zurück, wenn diese vorhanden sind
+    :param str file_config_user
+    :return: dict
+    """
+    user_config_dict = get_config_from_json(file_config_user)
+    dict_layer_defaults = {
+        'gewaesser': None,
+        'rohrleitungen': None,
+        'durchlaesse': None,
+        'schaechte':None,
+        'wehre': None
+    }
+    for layer_key in dict_layer_defaults.keys():
+        default_layer_name = user_config_dict['layer_names'][layer_key]
+        filtered_layer_list = [layer for layer in QgsProject.instance().mapLayers().values() if layer.type() == 0]  # nur Vektorlayer
+        if layer_key in ['gewaesser', 'rohrleitungen', 'durchlaesse']:
+            filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 1]  # nur Linienlayer
+        else:
+            filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 0]  # nur Punktlayer
+        if default_layer_name in filtered_layer_name_list:
+            dict_layer_defaults[layer_key] = default_layer_name
+    return dict_layer_defaults
+
+
 class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
-    '''	Dialog to edit the entries of the config dialog'''
+    '''Dialog to edit the entries of the config dialog'''
     def __init__(
         self,
         title_text,

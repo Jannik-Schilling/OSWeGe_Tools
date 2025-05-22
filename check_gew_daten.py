@@ -42,8 +42,7 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
-    QgsProcessingParameterVectorLayer,
-    QgsProject
+    QgsProcessingParameterVectorLayer
 )
 
 from .attributpruefung import (
@@ -57,7 +56,10 @@ from .check_gew_report import (
     layerReport
 )
 
-from .config_tools import get_config_from_json
+from .config_tools import (
+    get_config_from_json,
+    config_layer_if_in_project
+)
 
 from .defaults import (
     file_config_user,
@@ -96,24 +98,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         Definition von Input und Output des Werkzeugs
         """
         # User config laden
-        user_config_dict = get_config_from_json(file_config_user)
-        dict_layer_defaults = {
-            'gewaesser': None,
-            'rohrleitungen': None,
-            'durchlaesse': None,
-            'schaechte':None,
-            'wehre': None
-        }
-        for layer_key in dict_layer_defaults.keys():
-            default_layer_name = user_config_dict['layer_names'][layer_key]
-            filtered_layer_list = [layer for layer in QgsProject.instance().mapLayers().values() if layer.type() == 0]  # nur Vektorlayer
-            if layer_key in ['gewaesser', 'rohrleitungen', 'durchlaesse']:
-                filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 1]  # nur Linienlayer
-            else:
-                filtered_layer_name_list = [layer.name() for layer in filtered_layer_list if layer.geometryType() == 0]  # nur Punktlayer
-            if default_layer_name in filtered_layer_name_list:
-                dict_layer_defaults[layer_key] = default_layer_name
-
+        dict_layer_defaults = config_layer_if_in_project(file_config_user)
+ 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.LAYER_GEWAESSER,
