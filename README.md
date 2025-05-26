@@ -2,11 +2,19 @@
 Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
 
 ## Installation
-1. Plugin als .zip-Datei herunterladen
+
+### Variante 1 Aus dem QGIS-Plugin-Repository
+Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installieren...*):
+- Unter "Alle" -> suche nach "OSWeGe"
+- das Plugin auswählen und auf "installieren" klicken
+
+### Variante 2 Plugin als .zip-Datei
+1. herunterladen
    
 ![grafik](https://github.com/Jannik-Schilling/OSWeGe_Tools/assets/54308008/b736d8f9-0901-4297-af91-d3e1cdd419be)
 
-2. Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installiern...*)
+
+2. Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installieren...*):
   - sollte bereits eine ältere Version des Plugins installiert sein, muss diese zunächst gelöscht werden.
   - Tab "Aus ZIP installieren"
   - ZIP-Datei auswählen und auf "Erweiterung installieren" klicken
@@ -25,7 +33,7 @@ für eine Auswahl an Layern wird geprüft
 
    Die Ergebnisse werden als Separate Layer in einer Geopackage-Datei gespeichert
 ![grafik](https://github.com/user-attachments/assets/06891192-8364-4fd8-8918-a92cd533b8d4)
-### fg_ae-Abschnitte erstellen
+### fg_ae-Abschnitte erstellen (Verarbeitungswerkzeug)
 Zwischen den Gewässern 2. Ordnung und den Gewässern 1. Ordnung werden die benötigten Einleitungs- und Ausleitungsabschnitte erstellt. Die Abschnitte können nur bei korrekter Linienrichtung der Verbandsgewässer erstellt werden (entgegen der Fließrichtung / 1. Stützpunkt an der Mündung)
 ![before](https://github.com/user-attachments/assets/ead523da-f77b-448a-b33d-edbb94beda20)
 
