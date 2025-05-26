@@ -42,13 +42,7 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingOutputFile,
     QgsProcessingParameterFileDestination,
-    QgsProcessingParameterVectorLayer,
-)
-
-from .defaults import (
-    list_ereign_gew_id_fields,
-    output_layer_prefixes,
-    pflichtfelder
+    QgsProcessingParameterVectorLayer
 )
 
 from .attributpruefung import (
@@ -56,15 +50,25 @@ from .attributpruefung import (
     handle_tests_attributes
 )
 
-from .geometriepruefungen import (
-    handle_tests_single_geometries,
-    handle_tests_geoms_comparisons
-)
-
 from .check_gew_report import (
     create_layers_from_report_dict,
     save_layer_to_file,
     layerReport
+)
+
+from .config_tools import (
+    get_config_from_json,
+    config_layer_if_in_project
+)
+
+from .defaults import (
+    file_config_user,
+    output_layer_prefixes
+)
+
+from .geometriepruefungen import (
+    handle_tests_single_geometries,
+    handle_tests_geoms_comparisons
 )
 
 from .hilfsfunktionen import (
@@ -77,14 +81,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     Prueft Gewaesserdaten
     """
     LAYER_GEWAESSER = 'LAYER_GEWAESSER'
-    LAYER_ROHLEITUNGEN = 'LAYER_ROHLEITUNGEN'
+    LAYER_ROHRLEITUNGEN = 'LAYER_ROHRLEITUNGEN'
     LAYER_DURCHLAESSE = 'LAYER_DURCHLAESSE'
     LAYER_WEHRE = 'LAYER_WEHRE'
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
     REPORT_OUT = 'REPORT_OUT'
     
-    if (int(Qgis.version().split('.')[1]) >= 36) or (int(Qgis.version().split('.')[0]) > 3):
+    if (int(Qgis.version().split('.')[0]) == 3 and int(Qgis.version().split('.')[1]) >= 36) or (int(Qgis.version().split('.')[0]) > 3):
         newer_qgis_version = True
     else:
         newer_qgis_version = False
@@ -93,20 +97,25 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
         """
         Definition von Input und Output des Werkzeugs
         """
+        # User config laden
+        dict_layer_defaults = config_layer_if_in_project(file_config_user)
+ 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.LAYER_GEWAESSER,
                 self.tr('Gewässer-Layer'),
-                [QgsProcessing.SourceType.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine],
+                defaultValue=dict_layer_defaults['gewaesser']
             )
         )
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.LAYER_ROHLEITUNGEN,
+                self.LAYER_ROHRLEITUNGEN,
                 self.tr('Rohrleitungs-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['rohrleitungen']
             )
         )
 
@@ -115,7 +124,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_DURCHLAESSE,
                 self.tr('Durchlässe-Layer'),
                 [QgsProcessing.SourceType.TypeVectorLine],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['durchlaesse']
             )
         )
 
@@ -124,7 +134,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_WEHRE,
                 self.tr('Wehre-Layer'),
                 [QgsProcessing.SourceType.TypeVectorPoint],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['wehre']
             )
         )
 
@@ -133,7 +144,8 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 self.LAYER_SCHAECHTE,
                 self.tr('Schächte-Layer'),
                 [QgsProcessing.SourceType.TypeVectorPoint],
-                optional = True
+                optional=True,
+                defaultValue=dict_layer_defaults['schaechte']
             )
         )
 
@@ -164,7 +176,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
 
         # Layerdefinitionen
         layer_gew = self.parameterAsVectorLayer(parameters, self.LAYER_GEWAESSER, context)
-        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHLEITUNGEN, context)
+        layer_rohrleitungen = self.parameterAsVectorLayer(parameters, self.LAYER_ROHRLEITUNGEN, context)
         layer_durchlaesse = self.parameterAsVectorLayer(parameters, self.LAYER_DURCHLAESSE, context)
         layer_wehre = self.parameterAsVectorLayer(parameters, self.LAYER_WEHRE, context)
         layer_schaechte = self.parameterAsVectorLayer(parameters, self.LAYER_SCHAECHTE, context)
@@ -209,10 +221,12 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             )
 
         # Dictionary fuer immer wiederkehrende Parameter
+        # User config laden
+        user_config_dict = get_config_from_json(file_config_user)
         params_processing = {
             'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
-            'ereign_gew_id_field': list_ereign_gew_id_fields[1],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
+            'ereign_gew_id_field': user_config_dict['check_layer_defaults']['primaerschluessel_gew'],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
             'gew_primary_key_missing': False,
             'field_merged_id': 'merged_id',  # Feldname fuer neue ID, wenn rl und dl vorhanden
             'emptystrdef': [NULL, ''],  # moegliche "Leer"-Definitionen für Zeichenketten
@@ -264,7 +278,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 layer_key,
                 layer,
                 report_object,
-                pflichtfelder,
+                user_config_dict['check_layer_defaults']['pflichtfelder'],
                 params_processing
             )
             timeLogger.log_time(layer_key+'_Fields')

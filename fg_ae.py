@@ -10,6 +10,7 @@
 """
 
 from qgis.core import (
+    Qgis,
     QgsGeometry,
     QgsFeatureSink,
     QgsFields,
@@ -22,19 +23,26 @@ from qgis.core import (
     QgsSpatialIndex
 )
 
+# Exception for deprecated QVariant if QGIS version is older than 3.38
 
-from qgis.PyQt.QtCore import QVariant
-try:
+if (int(Qgis.version().split('.')[0]) == 3 and int(Qgis.version().split('.')[1]) > 36) or (int(Qgis.version().split('.')[0]) > 3):
+    qgis_version_newer_3_38 = True
     from qgis.PyQt.QtCore import QMetaType
-except Exception:
-    pass
+else:
+    qgis_version_newer_3_38 = False
+    from qgis.PyQt.QtCore import QVariant
 
 
 from .hilfsfunktionen import (
     linie_verlaengern
 )
 
+from .config_tools import (
+    get_config_from_json,
+    config_layer_if_in_project
+)
 from .pruefungsroutinen import muendet_nicht_in_fg_2ordnung
+from .defaults import file_config_user
 
 class AddFgAeAlagorithm(QgsProcessingAlgorithm):
     FG = "FG"
@@ -65,11 +73,15 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         )
 
     def initAlgorithm(self, config=None):
+        # User config laden
+        dict_layer_defaults = config_layer_if_in_project(file_config_user)
+
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.FG,
                 'Gewässer-Layer: fg',
-                [QgsProcessing.SourceType.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine],
+                defaultValue=dict_layer_defaults['gewaesser']
             )
         )
         self.addParameter(
@@ -100,9 +112,11 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
         
         # Festlegung fuer die Schrittweite (in m)
-        dist_verl = 4
-        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl -> max 40m
-        n_max = 10
+        dist_verl = 1
+        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl
+        user_config_dict = get_config_from_json(file_config_user)
+        dist_max = int(user_config_dict['max_suchraum_fg_ae_in_m'])
+        n_max = round(dist_max / dist_verl)
         
         # Spatial indices fuer die beiden Layer:
         spatial_index_fg =  QgsSpatialIndex(layer_fg.getFeatures())
@@ -120,6 +134,9 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
 
         # Linien verlaengern
         fg_ae_featurelist = []
+        feedback.setProgressText(
+            f'Erstelle an {len(fg_einmuendend)} Gewässermündungen fg_ae-Abschnitte, Suchraum: {dist_max}m'
+        )
         for current_ft_id in fg_einmuendend:
             current_ft_fg = layer_fg.getFeature(current_ft_id)
             
@@ -158,9 +175,9 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
 
         # Ausgabe
         out_fields = QgsFields()
-        try:
+        if qgis_version_newer_3_38:
             out_fields.append(QgsField('ba_cd', QMetaType.QString))
-        except Exception:  # for QGIS vor Version 3.38
+        else:  # for QGIS vor Version 3.38
             out_fields.append(QgsField('ba_cd', QVariant.String))
         (sink, dest_id) = self.parameterAsSink(
             parameters,

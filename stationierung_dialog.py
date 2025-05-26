@@ -53,11 +53,19 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPalette, QColor
 
-from .defaults import findGew_tolerance_dist
+from .defaults import (
+    findGew_tolerance_dist,
+    file_config_user
+)
+
+from .config_tools import config_layer_if_in_project
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'stationierung_dialog_base.ui'))
+    os.path.dirname(__file__),
+    'userinterfaces',
+    'stationierung_dialog_base.ui')
+)
 
 QgsInstance=QgsProject.instance()
 
@@ -157,6 +165,13 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.map_tool = None
         self.QgsInstance = QgsInstance
+
+        # mit config probieren
+        print('start')
+        dict_layer_defaults = config_layer_if_in_project(file_config_user)
+        if dict_layer_defaults['gewaesser']:
+            self.mMapLayerComboBox.setCurrentText(dict_layer_defaults['gewaesser'])
+            self.gew_layer = self.mMapLayerComboBox.currentLayer()
         
          # canvas und Maptool-Ueberwachung
         self.canvas = canvas
@@ -169,7 +184,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.list_p_l_layer_ohneGew = [l for l in self.list_p_l_layer if l != self.gew_layer]
         list_p_l_layer_ohneGew_names = [l.name() for l in self.list_p_l_layer_ohneGew]
         self.mComboBox.addItems(list_p_l_layer_ohneGew_names)
-        
+
         # Textanzeige
         self.show_text = (
             'Klicken Sie auf \'Abfrage starten\' um das Werkzeug zu aktivieren'

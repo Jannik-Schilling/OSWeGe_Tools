@@ -2,11 +2,19 @@
 Eine QGIS-Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
 
 ## Installation
-1. Plugin als .zip-Datei herunterladen
+
+### Variante 1 Aus dem QGIS-Plugin-Repository
+Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installieren...*):
+- Unter "Alle" -> suche nach "OSWeGe"
+- das Plugin auswählen und auf "installieren" klicken
+
+### Variante 2 Plugin als .zip-Datei
+1. herunterladen
    
 ![grafik](https://github.com/Jannik-Schilling/OSWeGe_Tools/assets/54308008/b736d8f9-0901-4297-af91-d3e1cdd419be)
 
-2. Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installieren...*)
+
+2. Im QGIS-Plugin Manager (*Erweiterungen > Erweiterungen verwalten und installieren...*):
   - sollte bereits eine ältere Version des Plugins installiert sein, muss diese zunächst gelöscht werden.
   - Tab "Aus ZIP installieren"
   - ZIP-Datei auswählen und auf "Erweiterung installieren" klicken

@@ -1,12 +1,13 @@
 {
-	"last_change": "06.05.2025",
-	"layer_names":{
+	"last_change": "07.05.2025",
+	"layer_names": {
 		"gewaesser": "",
-		"rohleitungen": "",
-		"durchlaesser": "",
-		"schachte": "",
+		"rohrleitungen": "",
+		"durchlaesse": "",
+		"schaechte": "",
 		"wehre": ""
 	},
+	"max_suchraum_fg_ae_in_m": 40,
 	"check_layer_defaults": {
 		"pflichtfelder": {
 			"gewaesser": ["ba_cd", "gu_cd"],
@@ -15,7 +16,7 @@
 			"wehre":["obj_nr_gu", "name", "gu_cd", "wehr"],
 			"schaechte":["obj_nr_gu", "name", "gu_cd", "scha"]
 		},
-		"list_ereign_gew_id_fields": ["gu_cd", "ba_cd"],
+		"primaerschluessel_gew": "ba_cd",
 		"minimallaenge_gew": 0.5,
 		"findGew_tolerance_dist": 0.2
 	}

@@ -47,6 +47,8 @@ from .resources import *
 # Import the code for the dialog and provider
 from .stationierung_dialog import stationierungDialog
 from .oswegeToolsProvider import oswegeToolsProvider
+from .defaults import file_config_user
+from .config_tools import oswegeToolsConfigDialog
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 
@@ -90,7 +92,8 @@ class oswege_tools_buttons:
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
-        self.first_start = None
+        self.first_start_stat = None
+        self.first_start_config = None
         
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""
@@ -190,20 +193,39 @@ class oswege_tools_buttons:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
+        icon_path_config = os.path.join(
+            self.plugin_dir,
+            'icons',
+            'config.png')
 
-        icon_path = os.path.join(
+        self.add_action(
+            icon_path_config,
+            text=self.tr(u'Das Plugin konfigurieren'),
+            callback=self.run_config,
+            parent=self.iface.mainWindow(),
+            add_to_menu=False,
+            whats_this='Das Plugin konfigurieren'
+        )
+
+        icon_path_stat = os.path.join(
             self.plugin_dir,
             'icons',
             'icon.png')
 
         self.add_action(
-            icon_path,
+            icon_path_stat,
             text=self.tr(u'Stationierung eines Gewässers anzeigen'),
-            callback=self.run,
-            parent=self.iface.mainWindow())
+            callback=self.run_stationierung,
+            parent=self.iface.mainWindow(),
+            add_to_menu=False
+        )
 
-        # will be set False in run()
-        self.first_start = True
+        # will be set False in run_stationierung()
+        self.first_start_stat = True
+        self.first_start_config = True
+
+
+
 
         # fuer Processing
         self.initProcessing()
@@ -220,15 +242,21 @@ class oswege_tools_buttons:
             self.iface.removeToolBarIcon(action)
 
 
-    def run(self):
+    def run_stationierung(self):
         """Run method that performs all the real work"""
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
+        if self.first_start_stat == True:
+            self.first_start_stat = True
             self.canvas = iface.mapCanvas()
-            self.dlg = stationierungDialog(
+            self.dlg_stat = stationierungDialog(
                 canvas=self.canvas
             )
-        self.dlg.show()
+        self.dlg_stat.show()
 
+    def run_config(self):
+        """Run config method"""
+        if self.first_start_config == True:
+            self.first_start_config = True
+            self.dlg_config = oswegeToolsConfigDialog(
+                json_file=file_config_user
+            )
+        self.dlg_config.show()
