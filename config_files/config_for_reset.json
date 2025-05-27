@@ -10,11 +10,11 @@
 	"max_suchraum_fg_ae_in_m": 40,
 	"check_layer_defaults": {
 		"pflichtfelder": {
-			"gewaesser": ["ba_cd", "gu_cd"],
-			"rohrleitungen": ["obj_nr_gu", "gu_cd", "profil"],
-			"durchlaesse": ["obj_nr_gu", "gu_cd", "profil"],
-			"wehre":["obj_nr_gu", "name", "gu_cd", "wehr"],
-			"schaechte":["obj_nr_gu", "name", "gu_cd", "scha"]
+			"gewaesser": ["gu_cd", "ba_cd"],
+			"rohrleitungen": ["obj_nr_gu", "gu_cd", "profil", "ba_cd"],
+			"durchlaesse": ["obj_nr_gu", "gu_cd", "profil", "ba_cd"],
+			"wehre":["obj_nr_gu", "gu_cd", "wehr", "ba_cd"],
+			"schaechte":["obj_nr_gu", "name", "gu_cd", "scha", "ba_cd"]
 		},
 		"primaerschluessel_gew": "ba_cd",
 		"minimallaenge_gew": 0.5,
