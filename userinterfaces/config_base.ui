@@ -61,7 +61,7 @@
    </property>
    <widget class="QWidget" name="tab_1">
     <attribute name="title">
-     <string>Layerauswahl und fg_ae-Parameter</string>
+     <string>Layerauswahl</string>
     </attribute>
     <widget class="QLabel" name="label_2">
      <property name="geometry">
@@ -321,6 +321,9 @@ p, li { white-space: pre-wrap; }
        <width>91</width>
        <height>31</height>
       </rect>
+     </property>
+     <property name="toolTip">
+      <string>Setzt alle Eingaben in diesem Reiter auf die Standardeinstellungen zurück</string>
      </property>
      <property name="whatsThis">
       <string>Setzt alle Eingaben in diesem Reiter auf die Standardeinstellungen zurück</string>
