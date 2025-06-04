@@ -220,7 +220,7 @@ class oswege_tools_buttons:
             add_to_menu=False
         )
 
-        # will be set False in run_stationierung()
+
         self.first_start_stat = True
         self.first_start_config = True
 
@@ -244,7 +244,7 @@ class oswege_tools_buttons:
 
     def run_stationierung(self):
         """Run method that performs all the real work"""
-        if self.first_start_stat == True:
+        if self.first_start_stat == True:  # kann eigentlich weg ...
             self.first_start_stat = True
             self.canvas = iface.mapCanvas()
             self.dlg_stat = stationierungDialog(

@@ -178,7 +178,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.json_file = json_file
         self.edit_dialog_is_open = False
         self.setWindowTitle('OSWeGe Tools - Konfiguration')
-        print('start_conf')
+        #print('start_conf')
         
         # Layerauswahl
         config_dict = get_config_from_json(json_file)
@@ -287,12 +287,17 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
 
     def save_config_test(self):
         '''
-        saves the current config to the self.json_file
+        saves the current config to the self.json_file.
+        This function exists for debugging purposes
         '''
         current_config = self.get_current_dialog_config()
         print(current_config)
 
     def open_edit_dialog(self, layer_key):
+        """
+        Opens a new QDialog to edit the required fields for a layer
+        :param str layer_key
+        """
         edit_dialog_title = f'Pflichtfelder für {layer_key.capitalize()}-Layer ändern'
         current_list_widget = self.dict_list_widgets[layer_key]
         current_value_list = current_list_widget.toPlainText().split('\n')
@@ -308,6 +313,9 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.edit_dialog_is_open = True
         
     def close_edit_dialog(self):
+        """
+        Closes the child QDialog when the parent is closed (if child dialog is open)
+        """
         if self.edit_dialog_is_open:
             self.editDialog.close()
             self.edit_dialog_is_open = False
