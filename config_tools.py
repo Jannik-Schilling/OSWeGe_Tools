@@ -111,7 +111,9 @@ class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
         self.buttonDelete.clicked.connect(self.delete_entries)
         self.buttonAdd.clicked.connect(self.add_entry)
         self.buttonBox.accepted.connect(self.update_parent)
-        
+        self.attributesComboBox.setToolTip("Um ein Attribut aus der Liste zu löschen, setzen Sie den Haken")
+        self.textEdit.setToolTip("Geben Sie ein neues Pflichtattribut / -Feld ein")
+
     def delete_entries(self):
         '''
         deletes the checked entries from self.attributesComboBox 
@@ -127,7 +129,7 @@ class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
         remaining_entries = [entr for entr in self.current_list if not entr in checked_entries]
         self.set_up_entrys(remaining_entries)
         self.current_list = remaining_entries
-        
+
     def set_up_entrys(self, new_list):
         '''
         sets up the entries in the QListWidget and the textBrowser 
@@ -140,7 +142,7 @@ class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
             'Aktuelle Attributliste: \n\n'
             + '\n'.join(new_list)
         )
-        
+
     def add_entry(self):
         '''
         adds the entry from the textEdit to the QListWidget and updates self.current_list
@@ -164,21 +166,22 @@ class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
         '''updates the parent dialog with the new entries'''
         self.parent().update_from_entry_edit(self.layer_key)
 
-
     def result(self):
         '''returns the current list of entries'''
         return self.current_list
 
 
 class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
-    '''Dialog to edit the config of the oswegeTools'''
+    '''Main Dialog to edit the config of the oswegeTools'''
     def __init__(self, json_file, parent=None):
         super(oswegeToolsConfigDialog, self).__init__(parent)
+        #print('start_conf')
         self.setupUi(self)
         self.json_file = json_file
         self.edit_dialog_is_open = False
         self.setWindowTitle('OSWeGe Tools - Konfiguration')
-        #print('start_conf')
+        #self.ignoreCaseCheckBox.setToolTip("Setzen Sie den Haken, um bei der Attributprüfung Groß-/Kleinschreibung der Felder zu ignorieren, z.B. \"BA_CD\" und \"ba_cd\"")
+        self.ignoreCaseCheckBox.setVisible(False)
         
         # Layerauswahl
         config_dict = get_config_from_json(json_file)
@@ -260,6 +263,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             if not loadad_primary_key in config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
                 text_list.append(loadad_primary_key)
             widget_obj.setText('\n'.join(text_list))
+        #self.ignoreCaseCheckBox.setChecked(config_dict["check_layer_defaults"]["feldname_gross_klein_ignorieren"]) #JSON: "feldname_gross_klein_ignorieren": false,
 
         # Minimallaenge Gewaesser
         self.WidgetLaengeGew.setValue(config_dict['check_layer_defaults']['minimallaenge_gew'])
@@ -364,6 +368,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         dialog_PflichtfeldWehre = self.WidgetPflichtfeldWehre.toPlainText().split('\n')
 
         dialog_primaerschluessel = self.comboBoxPrimrschl.currentText()
+        #dialog_ignore_case = self.ignoreCaseCheckBox.isChecked()
         dialog_minimallaenge = self.WidgetLaengeGew.value()
         dialog_fg_ae_laenge = int(self.fg_ae_spinbox.value())
         dialog_dict = {
@@ -379,6 +384,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
                     'wehre': dialog_PflichtfeldWehre
                 },
                 'primaerschluessel_gew': dialog_primaerschluessel,
+                'feldname_gross_klein_ignorieren': False,  #ToDo: dialog_ignore_case
                 'minimallaenge_gew': dialog_minimallaenge,
                 'findGew_tolerance_dist': 0.2  # ToDo
             }
