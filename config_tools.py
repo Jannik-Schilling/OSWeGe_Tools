@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 
 from qgis.PyQt import (
     QtWidgets,
@@ -121,7 +122,7 @@ class oswegeToolsConfigEntryEdit(QtWidgets.QDialog, FORM_CLASS_EDIT):
         '''
         checked_entries = self.attributesComboBox.checkedItems()
         if self.current_primary_key in checked_entries:
-            # remove current primary key from checked entries
+            # prevent current primary key from from removal
             open_message_box(
                 f'Der Primärschlüssel ({self.current_primary_key}) kann nicht gelöscht werden.'
             )
@@ -180,8 +181,8 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         self.json_file = json_file
         self.edit_dialog_is_open = False
         self.setWindowTitle('OSWeGe Tools - Konfiguration')
-        #self.ignoreCaseCheckBox.setToolTip("Setzen Sie den Haken, um bei der Attributprüfung Groß-/Kleinschreibung der Felder zu ignorieren, z.B. \"BA_CD\" und \"ba_cd\"")
-        self.ignoreCaseCheckBox.setVisible(False)
+        self.ignoreCaseCheckBox.setToolTip("Setzen Sie den Haken, um bei der Attributprüfung Groß-/Kleinschreibung der Felder zu ignorieren, z.B. \"BA_CD\" und \"ba_cd\"")
+        #self.ignoreCaseCheckBox.setVisible(False)
         
         # Layerauswahl
         config_dict = get_config_from_json(json_file)
@@ -263,7 +264,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
             if not loadad_primary_key in config_dict['check_layer_defaults']['pflichtfelder'][layer_key]:
                 text_list.append(loadad_primary_key)
             widget_obj.setText('\n'.join(text_list))
-        #self.ignoreCaseCheckBox.setChecked(config_dict["check_layer_defaults"]["feldname_gross_klein_ignorieren"]) #JSON: "feldname_gross_klein_ignorieren": false,
+        self.ignoreCaseCheckBox.setChecked(config_dict["check_layer_defaults"]["feldname_gross_klein_ignorieren"]) #JSON: "feldname_gross_klein_ignorieren": false,
 
         # Minimallaenge Gewaesser
         self.WidgetLaengeGew.setValue(config_dict['check_layer_defaults']['minimallaenge_gew'])
@@ -342,7 +343,8 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         returns the current config as a dictionary
         :return: config as a dictionary
         '''
-        last_change = '07.05.2025'  # Todo
+        current_time = datetime.datetime.now()
+        last_change = current_time.strftime('%d.%m.%Y')
         layer_names = {}
         for layer_key, layer_i in zip(
             [
@@ -368,7 +370,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
         dialog_PflichtfeldWehre = self.WidgetPflichtfeldWehre.toPlainText().split('\n')
 
         dialog_primaerschluessel = self.comboBoxPrimrschl.currentText()
-        #dialog_ignore_case = self.ignoreCaseCheckBox.isChecked()
+        dialog_ignore_case = self.ignoreCaseCheckBox.isChecked()
         dialog_minimallaenge = self.WidgetLaengeGew.value()
         dialog_fg_ae_laenge = int(self.fg_ae_spinbox.value())
         dialog_dict = {
@@ -384,7 +386,7 @@ class oswegeToolsConfigDialog(QtWidgets.QDialog, FORM_CLASS):
                     'wehre': dialog_PflichtfeldWehre
                 },
                 'primaerschluessel_gew': dialog_primaerschluessel,
-                'feldname_gross_klein_ignorieren': False,  #ToDo: dialog_ignore_case
+                'feldname_gross_klein_ignorieren': dialog_ignore_case,
                 'minimallaenge_gew': dialog_minimallaenge,
                 'findGew_tolerance_dist': 0.2  # ToDo
             }

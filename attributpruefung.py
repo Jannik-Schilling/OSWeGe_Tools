@@ -3,17 +3,26 @@ from .hilfsfunktionen import (
 )
 
 
-def check_missing_fields(layer_key, layer, pflichtfelder):
+def check_missing_fields(
+    layer_key,
+    layer,
+    pflichtfelder,
+    feldname_gross_klein_ignorieren
+):
     """
     Diese Funktion prueft, ob alle Pflichtfelder vorhanden sind
     This function checks if all required fields are present
     :param str layer_key
     :param QgsVectorLayer layer
     :param dict pflichtfelder
+    :param str feldname_gross_klein_ignorieren
     :return: list missing_fields
     """
     pflichtfelder_i = pflichtfelder[layer_key]
     layer_i_felder = layer.fields().names()
+    if feldname_gross_klein_ignorieren:
+        pflichtfelder_i = [f.lower() for f in pflichtfelder_i]
+        layer_i_felder = [f.lower() for f in layer_i_felder]
     missing_fields = [
         feld for feld in pflichtfelder_i if not feld in layer_i_felder
     ]
@@ -36,7 +45,13 @@ def handle_test_missing_fields(
     :param dict pflichtfelder
     :param dict params_processing
     """ 
-    missing_fields = check_missing_fields(layer_key, layer, pflichtfelder)
+    feldname_gross_klein_ignorieren = params_processing['feldname_gross_klein_ignorieren']
+    missing_fields = check_missing_fields(
+        layer_key,
+        layer,
+        pflichtfelder,
+        feldname_gross_klein_ignorieren
+    )
     ereign_gew_id_field = params_processing['ereign_gew_id_field']
     report_object.add_attribute_entry(
         layer_key,
