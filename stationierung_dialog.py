@@ -167,7 +167,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.QgsInstance = QgsInstance
 
         # mit config probieren
-        print('start')
+        #print('start')
         dict_layer_defaults = config_layer_if_in_project(file_config_user)
         if dict_layer_defaults['gewaesser']:
             self.mMapLayerComboBox.setCurrentText(dict_layer_defaults['gewaesser'])

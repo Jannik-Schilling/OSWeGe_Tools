@@ -6,7 +6,7 @@
 name=oswege_tools
 qgisMinimumVersion=3.0
 description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
-version=1.0
+version=1.1
 
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
@@ -23,7 +23,7 @@ repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-# changelog= Version 1.0: first upload
+changelog= Version 1.1: updated config ui
 
 # Tags are comma separated with spaces allowed
 tags=python
@@ -32,7 +32,7 @@ homepage=https://oswege.auf.uni-rostock.de/default.aspx
 category=Plugins
 icon=icons/icon.png
 # experimental flag
-experimental=True
+experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False

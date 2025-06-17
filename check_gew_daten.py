@@ -227,6 +227,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
             'layer_dict': layer_dict,  # zu pruefende Layer
             'feedback': feedback,  # QgsProcessingFeedback fuer Statusinfos waehrend des Durchlaufs
             'ereign_gew_id_field': user_config_dict['check_layer_defaults']['primaerschluessel_gew'],  # Name des Felds mit dem Primaerschluessel: "gu_cd" oder "ba_cd"
+            'feldname_gross_klein_ignorieren': user_config_dict['check_layer_defaults']['feldname_gross_klein_ignorieren'],
             'gew_primary_key_missing': False,
             'field_merged_id': 'merged_id',  # Feldname fuer neue ID, wenn rl und dl vorhanden
             'emptystrdef': [NULL, ''],  # moegliche "Leer"-Definitionen für Zeichenketten
