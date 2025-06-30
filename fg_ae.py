@@ -119,7 +119,7 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
                 + gew_key_field
                 +'\") nicht verfügbar im Layer '
                 + layer_fg.name()
-                + '. 
+                + '. '
                 )
         layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
         
