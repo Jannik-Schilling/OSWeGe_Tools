@@ -183,7 +183,7 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
                 )
                 if ergebnis_verl[0]:
                     ft_ae = ergebnis_verl[1]
-                    ft_ae.setAttributes(['gew_key_i'])
+                    ft_ae.setAttributes([gew_key_i])
                     fg_ae_featurelist.append(ft_ae)
                     break
                 else:
