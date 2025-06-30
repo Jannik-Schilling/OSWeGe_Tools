@@ -109,6 +109,18 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(
                 self.invalidSourceError(parameters, self.FG)
             )
+        gew_key_field = 'ba_cd'
+        if gew_key_field in layer_fg.fields().names():
+            gew_key_available = True
+        else:
+            gew_key_available = False
+            feedback.pushWarning(
+                'Gewässernummer (Feld \"'
+                + gew_key_field
+                +'\") nicht verfügbar im Layer '
+                + layer_fg.name()
+                + '. 
+                )
         layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
         
         # Festlegung fuer die Schrittweite (in m)
@@ -139,6 +151,10 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         )
         for current_ft_id in fg_einmuendend:
             current_ft_fg = layer_fg.getFeature(current_ft_id)
+            if gew_key_available:
+                gew_key_i = current_ft_fg.attributeMap()[gew_key_field]
+            else:
+                gew_key_i = 'ba_cd_temp'
             
             # erster Stuetzpunkt
             vtx_muendung = QgsGeometry(current_ft_fg.geometry().vertexAt(0))
@@ -167,7 +183,7 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
                 )
                 if ergebnis_verl[0]:
                     ft_ae = ergebnis_verl[1]
-                    ft_ae.setAttributes(['ba_cd_temp'])
+                    ft_ae.setAttributes(['gew_key_i'])
                     fg_ae_featurelist.append(ft_ae)
                     break
                 else:
@@ -176,9 +192,9 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         # Ausgabe
         out_fields = QgsFields()
         if qgis_version_newer_3_38:
-            out_fields.append(QgsField('ba_cd', QMetaType.QString))
+            out_fields.append(QgsField(gew_key_field, QMetaType.QString))
         else:  # for QGIS vor Version 3.38
-            out_fields.append(QgsField('ba_cd', QVariant.String))
+            out_fields.append(QgsField(gew_key_field, QVariant.String))
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
