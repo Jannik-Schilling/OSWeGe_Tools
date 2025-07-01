@@ -109,7 +109,19 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(
                 self.invalidSourceError(parameters, self.FG)
             )
-        gew_key_field = 'ba_cd'
+
+
+        layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
+
+        # Festlegung fuer die Schrittweite (in m)
+        dist_verl = 1
+        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl
+        user_config_dict = get_config_from_json(file_config_user)
+        dist_max = int(user_config_dict['max_suchraum_fg_ae_in_m'])
+        n_max = round(dist_max / dist_verl)
+        
+        # ist das Feld mit dem Gewaessercode verfuegbar?
+        gew_key_field = user_config_dict['check_layer_defaults']['primaerschluessel_gew']
         if gew_key_field in layer_fg.fields().names():
             gew_key_available = True
         else:
@@ -119,16 +131,8 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
                 + gew_key_field
                 +'\") nicht verfügbar im Layer '
                 + layer_fg.name()
-                + '. '
+                + '. Stattdessen wird die Objekt-ID eingetragen'
                 )
-        layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
-        
-        # Festlegung fuer die Schrittweite (in m)
-        dist_verl = 1
-        # Festlegung fuer die maximale Anzahl an Suchen n*dist_verl
-        user_config_dict = get_config_from_json(file_config_user)
-        dist_max = int(user_config_dict['max_suchraum_fg_ae_in_m'])
-        n_max = round(dist_max / dist_verl)
         
         # Spatial indices fuer die beiden Layer:
         spatial_index_fg =  QgsSpatialIndex(layer_fg.getFeatures())
@@ -154,7 +158,8 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
             if gew_key_available:
                 gew_key_i = current_ft_fg.attributeMap()[gew_key_field]
             else:
-                gew_key_i = 'ba_cd_temp'
+                gew_key_i = current_ft_fg.id()
+                gew_key_field = 'Objekt-ID'
             
             # erster Stuetzpunkt
             vtx_muendung = QgsGeometry(current_ft_fg.geometry().vertexAt(0))
