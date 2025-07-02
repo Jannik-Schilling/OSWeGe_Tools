@@ -23,7 +23,10 @@ repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog= Version 1.2: fg_ae mit gewaessercode
+changelog= Version 1.2: 
+	- fg_ae mit gewaessercode
+	- update config-Datei
+	- epsg-pruefung im fg_ae-Werkzeug
 # Tags are comma separated with spaces allowed
 tags=python
 

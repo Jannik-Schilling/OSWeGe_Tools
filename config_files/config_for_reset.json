@@ -11,12 +11,12 @@
 	"check_layer_defaults": {
 		"pflichtfelder": {
 			"gewaesser": ["ba_cd", "gu_cd"],
-			"rohrleitungen": ["obj_nr_gu", "gu_cd", "profil"],
-			"durchlaesse": ["obj_nr_gu", "gu_cd", "profil"],
-			"wehre":["obj_nr_gu", "gu_cd", "wehr"],
-			"schaechte":["obj_nr_gu", "name", "gu_cd", "scha"]
+			"rohrleitungen": ["obj_nr_gu", "ba_cd", "profil"],
+			"durchlaesse": ["obj_nr_gu", "ba_cd", "profil"],
+			"wehre":["obj_nr_gu", "ba_cd", "wehr"],
+			"schaechte":["obj_nr_gu", "name", "ba_cd", "scha"]
 		},
-		"primaerschluessel_gew": "gu_cd",
+		"primaerschluessel_gew": "ba_cd",
 		"feldname_gross_klein_ignorieren": false,
 		"minimallaenge_gew": 0.5,
 		"findGew_tolerance_dist": 0.2

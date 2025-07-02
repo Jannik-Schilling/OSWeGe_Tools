@@ -114,7 +114,7 @@ class AddFgAeAlagorithm(QgsProcessingAlgorithm):
         layer_fg_1ordnung = self.parameterAsVectorLayer(parameters, self.FG_1_ORDNUNG, context)
         
         # Gleichheit der Koordinatensysteme pruefen
-        if not layer_fg.crs().authid()) == layer_fg_1ordnung.crs().authid():
+        if not layer_fg.crs().authid() == layer_fg_1ordnung.crs().authid():
             raise QgsProcessingException(
                 'Alle Layer müssen im gleichen Koordinatenbezugssystem gespeichert sein!'
             )
