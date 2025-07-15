@@ -6,7 +6,7 @@
 name=oswege_tools
 qgisMinimumVersion=3.0
 description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
-version=1.2
+version=1.3
 
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
@@ -23,10 +23,8 @@ repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog= Version 1.2: 
-	- fg_ae mit gewaessercode
-	- update config-Datei
-	- epsg-pruefung im fg_ae-Werkzeug
+changelog= Version 1.3: 
+	- 
 # Tags are comma separated with spaces allowed
 tags=python
 
