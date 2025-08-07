@@ -56,7 +56,7 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 
 class oswege_tools_buttons:
-    """QGIS Plugin Implementation."""
+    """QGIS Plugin Implementierung mit Schaltflaechen und Verarbeitungswerkzeugen."""
 
     def __init__(self, iface):
         """Constructor.

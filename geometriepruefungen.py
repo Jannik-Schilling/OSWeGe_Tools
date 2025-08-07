@@ -1,6 +1,7 @@
 import pandas as pd
 from qgis.core import (
     QgsGeometry,
+    QgsMultiPoint,
     QgsPoint,
     QgsSpatialIndex,
     QgsWkbTypes
@@ -336,16 +337,49 @@ def check_duplicates_crossings(
                 else:
                     list_geom_duplicate.append(list(group_i)+[geom])
                     visited_groups_equal.add(group_i)
-            if geom.crosses(other_geom):
-                if group_i in visited_groups_crossings:
-                    pass
-                else:
-                    intersection_point = geom.intersection(other_geom)
-                    list_geom_crossings.append(list(group_i)+[intersection_point])
-                    visited_groups_crossings.add(group_i)
+            if not geom.type() == 0:  # nur bei Linien
+                if geom.crosses(other_geom):
+                    if group_i in visited_groups_crossings:
+                        pass
+                    else:
+                        intersection_points = geom.intersection(other_geom)
+                        intersection_points = remove_connectict_vtx_from_intersections(
+                            intersection_points,
+                            geom,
+                            other_geom
+                        )
+                        list_geom_crossings.append(list(group_i)+[intersection_points])
+                        visited_groups_crossings.add(group_i)
     df_geom_crossings = pd.DataFrame(list_geom_crossings, columns = column_names)
     df_geom_duplicate = pd.DataFrame(list_geom_duplicate, columns = column_names)
     return df_geom_crossings, df_geom_duplicate
+
+def remove_connectict_vtx_from_intersections(
+    intersection_points,
+    geom,
+    other_geom
+):
+    '''
+    entfernt bei sich ueberschneidenden linien (crossing) die Punkte, die lediglich Verbindungspunkte sind
+    :param list intersection_points
+    :param QgsGeometry geom
+    :param QgsGeometry other_geom
+    '''
+    vtx_list = [f for f in intersection_points.vertices()]
+    if len(vtx_list) > 1:
+        geom_vtc = [f for f in geom.vertices()]
+        geom_vtx_start_end = [geom_vtc[i] for i in (0, -1)] # erster und letzter Stuetzpunkt
+        other_geom_vtc = [f for f in other_geom.vertices()]
+        other_geom_vtx_start_end = [other_geom_vtc[i] for i in (0, -1)] # erster und letzter Stuetzpunkt
+        # Verbindungspunkte entfernen:
+        vtx_list = [
+            pt for pt in vtx_list if not pt in geom_vtx_start_end
+        ]
+        vtx_list = [
+            pt for pt in vtx_list if not pt in other_geom_vtx_start_end
+        ]
+        intersection_points = QgsGeometry(QgsMultiPoint(vtx_list))
+    return intersection_points
 
 def check_geometrie_wasserscheide_senke(
     geom,
@@ -493,15 +527,30 @@ def check_line_geom_on_line(
         # naechster Stuetzpunkt danach
         result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
         # Linie bis zum Punkt -> Stationierung
-        if gew_i_geom.isMultipart():
-            gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
-            first_segment = gew_i_geom_polyline[0][:result_tuple[2]]+[result_tuple[1]]
+        length_of_line_parts_before = 0
+        if gew_i_geom.geometry().isMultipart():
+            gew_i_geom_polyline = gew_i_geom.geometry().asMultiPolyline()
+            # korrektes Teil herausfinden
+            part_dict = {}
+            for part_num, part in enumerate(gew_i_geom_polyline):
+                for vtx_num, vtx in enumerate(part):
+                    part_dict[i] = {
+                        'part_num': part_num,
+                        'part_vtx': vtx_num}
+                    i += 1
+            current_part_num = part_dict[result_tuple[2]]['part_num']
+            current_part_vtx = part_dict[result_tuple[2]]['part_vtx']
+            current_segment = gew_i_geom_polyline[current_part_num][:current_part_vtx]+[result_tuple[1]]
+            for part_line in gew_i_geom_polyline[:current_part_num]:
+                part_line = [QgsPoint(p) for p in part_line]
+                part_line_geom = QgsGeometry.fromPolyline(part_line)
+                length_of_line_parts_before = length_of_line_parts_before + round(part_line_geom.length(),2)
         else:
             gew_i_geom_polyline = gew_i_geom.asPolyline()
-            first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
-        first_segment = [QgsPoint(p) for p in first_segment]
-        first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-        stationierung = first_segment_geom.length()
+            current_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
+        current_segment = [QgsPoint(p) for p in current_segment]
+        current_segment_geom = QgsGeometry.fromPolyline(current_segment)
+        stationierung = length_of_line_parts_before + current_segment_geom.length()
         list_gew_stat.append(stationierung)
 
     # Richtung

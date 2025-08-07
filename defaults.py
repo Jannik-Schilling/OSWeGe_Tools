@@ -36,6 +36,7 @@ dict_ereign_fehler = {
     'Richtung':{
         0: 'korrekt',
         1: 'verkehrt herum',
+        2: 'falsche Reihefolge der Stuetzpunkte',
     },
     'Lage_rldl': {
         0: 'korrekt',

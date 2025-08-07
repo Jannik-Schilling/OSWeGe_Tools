@@ -316,15 +316,30 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
             clicked_gew_ft_id = df2.loc[i,'id']
             clicked_line_ft = self.gew_layer.getFeature(clicked_gew_ft_id)
             result_tuple = clicked_line_ft.geometry().closestSegmentWithContext(clicked_point)
+            length_of_line_parts_before = 0
             if clicked_line_ft.geometry().isMultipart():
                 clicked_line_geom = clicked_line_ft.geometry().asMultiPolyline()
-                first_segment = clicked_line_geom[0][:result_tuple[2]]+[result_tuple[1]]
+                # korrektes Teil herausfinden
+                part_dict = {}
+                for part_num, part in enumerate(clicked_line_geom):
+                    for vtx_num, vtx in enumerate(part):
+                        part_dict[i] = {
+                            'part_num': part_num,
+                            'part_vtx': vtx_num}
+                        i += 1
+                current_part_num = part_dict[result_tuple[2]]['part_num']
+                current_part_vtx = part_dict[result_tuple[2]]['part_vtx']
+                current_segment = clicked_line_geom[current_part_num][:current_part_vtx]+[result_tuple[1]]
+                for part_line in clicked_line_geom[:current_part_num]:
+                    part_line = [QgsPoint(p) for p in part_line]
+                    part_line_geom = QgsGeometry.fromPolyline(part_line)
+                    length_of_line_parts_before = length_of_line_parts_before + round(part_line_geom.length(),2)
             else:
                 clicked_line_geom = clicked_line_ft.geometry().asPolyline()
-                first_segment = clicked_line_geom[:result_tuple[2]]+[result_tuple[1]]
-            first_segment = [QgsPoint(p) for p in first_segment]
-            first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-            stationierung = round(first_segment_geom.length(),2)
+                current_segment = clicked_line_geom[:result_tuple[2]]+[result_tuple[1]]
+            current_segment = [QgsPoint(p) for p in current_segment]
+            current_segment_geom = QgsGeometry.fromPolyline(current_segment)
+            stationierung = round(length_of_line_parts_before + current_segment_geom.length(),2)
             gew_name = clicked_line_ft.attribute(self.gew_FieldComboBox.currentText())
             self.show_text = (
                 self.show_text +
