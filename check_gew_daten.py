@@ -84,6 +84,7 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
     LAYER_ROHRLEITUNGEN = 'LAYER_ROHRLEITUNGEN'
     LAYER_DURCHLAESSE = 'LAYER_DURCHLAESSE'
     LAYER_WEHRE = 'LAYER_WEHRE'
+    LAYER_DUEKER = 'LAYER_DUEKER'
     LAYER_SCHAECHTE = 'LAYER_SCHAECHTE'
     REPORT = 'REPORT'
     REPORT_OUT = 'REPORT_OUT'
@@ -108,7 +109,14 @@ class checkGewaesserDaten(QgsProcessingAlgorithm):
                 defaultValue=dict_layer_defaults['gewaesser']
             )
         )
-
+        #self.addParameter(
+        #    QgsProcessingParameterVectorLayer(
+        #        self.LAYER_DUEKER,
+        #        self.tr('Düker-Layer'),
+        #        [QgsProcessing.SourceType.TypeVectorLine],
+        #        optional=True
+        #    )
+        #)
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.LAYER_ROHRLEITUNGEN,
