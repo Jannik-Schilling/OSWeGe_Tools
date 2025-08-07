@@ -527,15 +527,30 @@ def check_line_geom_on_line(
         # naechster Stuetzpunkt danach
         result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
         # Linie bis zum Punkt -> Stationierung
-        if gew_i_geom.isMultipart():
-            gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
-            first_segment = gew_i_geom_polyline[0][:result_tuple[2]]+[result_tuple[1]]
+        length_of_line_parts_before = 0
+        if gew_i_geom.geometry().isMultipart():
+            gew_i_geom_polyline = gew_i_geom.geometry().asMultiPolyline()
+            # korrektes Teil herausfinden
+            part_dict = {}
+            for part_num, part in enumerate(gew_i_geom_polyline):
+                for vtx_num, vtx in enumerate(part):
+                    part_dict[i] = {
+                        'part_num': part_num,
+                        'part_vtx': vtx_num}
+                    i += 1
+            current_part_num = part_dict[result_tuple[2]]['part_num']
+            current_part_vtx = part_dict[result_tuple[2]]['part_vtx']
+            current_segment = gew_i_geom_polyline[current_part_num][:current_part_vtx]+[result_tuple[1]]
+            for part_line in gew_i_geom_polyline[:current_part_num]:
+                part_line = [QgsPoint(p) for p in part_line]
+                part_line_geom = QgsGeometry.fromPolyline(part_line)
+                length_of_line_parts_before = length_of_line_parts_before + round(part_line_geom.length(),2)
         else:
             gew_i_geom_polyline = gew_i_geom.asPolyline()
-            first_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
-        first_segment = [QgsPoint(p) for p in first_segment]
-        first_segment_geom = QgsGeometry.fromPolyline(first_segment)
-        stationierung = first_segment_geom.length()
+            current_segment = gew_i_geom_polyline[:result_tuple[2]]+[result_tuple[1]]
+        current_segment = [QgsPoint(p) for p in current_segment]
+        current_segment_geom = QgsGeometry.fromPolyline(current_segment)
+        stationierung = length_of_line_parts_before + current_segment_geom.length()
         list_gew_stat.append(stationierung)
 
     # Richtung

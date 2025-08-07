@@ -339,7 +339,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
                 current_segment = clicked_line_geom[:result_tuple[2]]+[result_tuple[1]]
             current_segment = [QgsPoint(p) for p in current_segment]
             current_segment_geom = QgsGeometry.fromPolyline(current_segment)
-            stationierung = length_of_line_parts_before + round(current_segment_geom.length(),2)
+            stationierung = round(length_of_line_parts_before + current_segment_geom.length(),2)
             gew_name = clicked_line_ft.attribute(self.gew_FieldComboBox.currentText())
             self.show_text = (
                 self.show_text +
