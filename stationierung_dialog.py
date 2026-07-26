@@ -8,7 +8,7 @@
                              -------------------
         begin                : 2024-04-04
         git sha              : $Format:%H$
-        copyright            : (C) 2024 by Jannik Schilling
+        copyright            : (C) 2024-2026 by Jannik Schilling
         email                : jannik.schilling@uni-rostock.de
  ***************************************************************************/
 
@@ -26,8 +26,7 @@ import os
 import pandas as pd
 
 
-from qgis.PyQt import uic
-from qgis.PyQt import QtWidgets
+# qgis packages
 from qgis.core import (
     Qgis,
     QgsCoordinateTransform,
@@ -45,13 +44,20 @@ from qgis.gui import (
     QgsMapToolEmitPoint,
     QgsSnapIndicator
 )
-from PyQt5.QtCore import (
+
+# Qt Packages
+from qgis.PyQt import (
+    uic,
+    QtWidgets
+)
+from qgis.PyQt.QtCore import (
     Qt
 )
-from PyQt5.QtWidgets import (
+from qgis.PyQt.QtWidgets import (
     QDialogButtonBox
 )
-from PyQt5.QtGui import QPalette, QColor
+from qgis.PyQt.QtGui import QPalette, QColor
+
 
 from .defaults import (
     findGew_tolerance_dist,
@@ -88,7 +94,7 @@ class PrintSnappedPoint(QgsMapToolEmitPoint):
         self.snapping_config = self.snapping_utils.config()
         self.snapping_config.setEnabled(True)
         self.snapping_config.setMode(
-            QgsSnappingConfig.AdvancedConfiguration
+            QgsSnappingConfig.SnappingMode.AdvancedConfiguration
         )
         """
         self.snapping_settings = QgsSnappingConfig.IndividualLayerSettings()
@@ -99,12 +105,12 @@ class PrintSnappedPoint(QgsMapToolEmitPoint):
             if ly is not None:
                 self.snapping_settings = QgsSnappingConfig.IndividualLayerSettings()
                 self.snapping_settings.setEnabled(True)
-                if ly.geometryType() == QgsWkbTypes.LineGeometry:
+                if ly.geometryType() == QgsWkbTypes.GeometryType.LineGeometry:
                     self.snapping_settings.setTypeFlag(Qgis.SnappingTypes(Qgis.SnappingType.Vertex | Qgis.SnappingType.Segment))
                 else:
                     self.snapping_settings.setTypeFlag(Qgis.SnappingType.Vertex)
                 self.snapping_settings.setTolerance(15)
-                self.snapping_settings.setUnits(QgsTolerance.Pixels)
+                self.snapping_settings.setUnits(QgsTolerance.UnitType.Pixels)
                 self.snapping_config.setIndividualLayerSettings(
                     ly,
                     self.snapping_settings
@@ -158,11 +164,11 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.LineLayer)
+        self.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.Filter.LineLayer)
         self.gew_layer = self.mMapLayerComboBox.currentLayer()
         self.gew_FieldComboBox.setLayer(self.gew_layer)
         self.mMapLayerComboBox.layerChanged.connect(self.reset_gew_layer)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.map_tool = None
         self.QgsInstance = QgsInstance
 
@@ -180,7 +186,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         
         # weitere layer-combobox
         list_vlayers = [l for l in QgsInstance.mapLayers().values() if isinstance(l, QgsVectorLayer)]
-        self.list_p_l_layer = [l for l in list_vlayers if l.geometryType() in [QgsWkbTypes.LineGeometry, QgsWkbTypes.PointGeometry]]
+        self.list_p_l_layer = [l for l in list_vlayers if l.geometryType() in [QgsWkbTypes.GeometryType.LineGeometry, QgsWkbTypes.GeometryType.PointGeometry]]
         self.list_p_l_layer_ohneGew = [l for l in self.list_p_l_layer if l != self.gew_layer]
         list_p_l_layer_ohneGew_names = [l.name() for l in self.list_p_l_layer_ohneGew]
         self.mComboBox.addItems(list_p_l_layer_ohneGew_names)
@@ -192,7 +198,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.textBrowser.setText(self.show_text)
         
         # buttons
-        self.buttonBox.button(QDialogButtonBox.Close).setText("Fenster Schließen")
+        self.buttonBox.button(QDialogButtonBox.StandardButton.Close).setText("Fenster Schließen")
         self.pushButton_start.clicked.connect(self.set_green)
         self.pushButton_start.clicked.connect(self.run_action)
         self.pushButton_start.setStyleSheet('QPushButton {background-color: #95f088}')
@@ -232,7 +238,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         self.gew_layer = self.mMapLayerComboBox.currentLayer()
         self.gew_FieldComboBox.setLayer(self.gew_layer)
         list_vlayers = [l for l in QgsInstance.mapLayers().values() if isinstance(l, QgsVectorLayer)]
-        self.list_p_l_layer = [l for l in list_vlayers if l.geometryType() in [QgsWkbTypes.LineGeometry, QgsWkbTypes.PointGeometry]]
+        self.list_p_l_layer = [l for l in list_vlayers if l.geometryType() in [QgsWkbTypes.GeometryType.LineGeometry, QgsWkbTypes.GeometryType.PointGeometry]]
         self.list_p_l_layer_ohneGew = [l for l in self.list_p_l_layer if l != self.gew_layer]
         list_p_l_layer_ohneGew_names = [l.name() for l in self.list_p_l_layer_ohneGew]
         self.mComboBox.clear()
@@ -242,7 +248,7 @@ class stationierungDialog(QtWidgets.QDialog, FORM_CLASS):
         weitere_snaplayer_name = self.mComboBox.checkedItems()
         model = self.mComboBox.model()
         count = model.rowCount()
-        weitere_snaplayer_index = [i for i in range(count) if model.item(i).checkState() == Qt.Checked]
+        weitere_snaplayer_index = [i for i in range(count) if model.item(i).checkState() == Qt.CheckState.Checked]
         self.layer_snaplist = [self.gew_layer] + [self.list_p_l_layer_ohneGew[i] for i in weitere_snaplayer_index]
         self.textBrowser.setText(
             'Zur Anzeige der Stationierung klicken Sie auf einen Gewässerabschnitt'

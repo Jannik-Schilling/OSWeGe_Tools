@@ -528,8 +528,8 @@ def check_line_geom_on_line(
         result_tuple = gew_i_geom.closestSegmentWithContext(nearest_gew_xy)
         # Linie bis zum Punkt -> Stationierung
         length_of_line_parts_before = 0
-        if gew_i_geom.geometry().isMultipart():
-            gew_i_geom_polyline = gew_i_geom.geometry().asMultiPolyline()
+        if gew_i_geom.isMultipart():
+            gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
             # korrektes Teil herausfinden
             part_dict = {}
             for part_num, part in enumerate(gew_i_geom_polyline):
@@ -692,7 +692,7 @@ def check_location_event_on_river(
         else:
             series_vtx_bericht = pd.Series()
             #Linie / Punkt auf Gewaesserlinie ?
-            if layer.geometryType() == QgsWkbTypes.PointGeometry:  # Point
+            if layer.geometryType() == QgsWkbTypes.GeometryType.PointGeometry:  # Point
                 series_vtx_bericht['feature_id'] = feature_id_temp
                 line_feature = get_line_to_check(geom, layer_gew, spatial_index_gew)
                 if line_feature:
