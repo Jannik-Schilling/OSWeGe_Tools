@@ -517,7 +517,7 @@ def check_line_geom_on_line(
     sr_vtx_report['gew_id'] = other_line_ft.id()
     gew_i_geom = other_line_ft.geometry()
     list_gew_stat = []
-    list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()]
+    list_vtx_geom = [QgsGeometry(vtx) for vtx in geom.vertices()] # Liste der Stuetzpunkte der zu pruefenden Linie
 
     # Stationierung
     for vtx in list_vtx_geom:
@@ -532,6 +532,7 @@ def check_line_geom_on_line(
             gew_i_geom_polyline = gew_i_geom.asMultiPolyline()
             # korrektes Teil herausfinden
             part_dict = {}
+            i = 0
             for part_num, part in enumerate(gew_i_geom_polyline):
                 for vtx_num, vtx in enumerate(part):
                     part_dict[i] = {
@@ -541,6 +542,7 @@ def check_line_geom_on_line(
             current_part_num = part_dict[result_tuple[2]]['part_num']
             current_part_vtx = part_dict[result_tuple[2]]['part_vtx']
             current_segment = gew_i_geom_polyline[current_part_num][:current_part_vtx]+[result_tuple[1]]
+            # Laenge der Segmente davor aufsummiert
             for part_line in gew_i_geom_polyline[:current_part_num]:
                 part_line = [QgsPoint(p) for p in part_line]
                 part_line_geom = QgsGeometry.fromPolyline(part_line)

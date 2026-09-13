@@ -7,7 +7,7 @@ name=oswege_tools
 qgisMinimumVersion=3.0
 qgisMaximumVersion=4.99
 description= Eine Werkzeugsammlung für die Gewässerdatenverwaltung von Wasser- und Bodenverbänden / A collection of QGIS tools for the management of river geodata of German water and soil associations
-version=1.4.1
+version=1.4.2
 
 author=Jannik Schilling
 email=jannik.schilling@posteo.de
@@ -24,8 +24,8 @@ repository=https://github.com/Jannik-Schilling/OSWeGe_Tools
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog= Version 1.4.1: 
-	- bugfixes
+changelog= Version 1.4.2: 
+	- bugfix: missing parameter in for-loop
 	- QGIS 4 compatibility
 # Tags are comma separated with spaces allowed
 tags=river, water, linear referencing, data quality
